@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+
+- Added `.dockerignore` and `HEALTHCHECK` to Dockerfile, allowing Docker builds to succeed out of the box.
+- Upgraded the audit log to a truly tamper-evident hash-chained sequence. Users can now click "Verify integrity" to cryptographically check that no previous logs have been altered or deleted.
+- Hardened the `v1/chat/completions` proxy: the AI inspector now processes long inputs in overlapping windows (up to 16,000 characters) and threat logic runs exclusively on user/tool messages, significantly improving downstream proxy reliability.
+- Proxy `UPSTREAM_BASE_URL` and `UPSTREAM_API_KEY` are now documented in `render.yaml` and `README.md`.
+- Implemented a daily quota for downstream model requests (`DOWNSTREAM_DAILY_LIMIT`), with a graceful fallback to the simulated model.
+- Prevented potential webhook parsing errors by replacing backticks with a lookalike character in blocked prompt alerts.
+- Removed hard-coded latency claims in favor of more robust qualitative assessments.
+- Cleaned up root directory by moving launch scripts to `scripts/launchers/`.
 ## 1.1.0
 
 ### Security

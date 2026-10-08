@@ -24,7 +24,12 @@ const publicOut = (o, eventId) => ({
 });
 
 r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
-  const out = await runPipeline({ prompt: req.body.prompt, context: req.body.context, policy: getPolicy(req.user.id), guardrails: req.body.guardrails, targetModel: req.body.targetModel });
+  const DAILY_LIMIT = Number(process.env.DOWNSTREAM_DAILY_LIMIT) || 25;
+  const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(req.user.id);
+  const quotaExceeded = quotaRow && quotaRow.c >= DAILY_LIMIT;
+
+  const targetModel = quotaExceeded ? 'Quota exceeded' : req.body.targetModel;
+  const out = await runPipeline({ prompt: req.body.prompt, context: req.body.context, policy: getPolicy(req.user.id), guardrails: req.body.guardrails, targetModel });
   const id = saveEvent(req.user.id, out);
   res.status(out.action === 'BLOCKED' ? 403 : 200).json(publicOut(out, id));
 });
@@ -73,15 +78,19 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
   if (scanText.length > 16000) return res.status(413).json({ error: { message: 'Request too large: scanned text exceeds 16000 characters', type: 'invalid_request_error' } });
   
   const out = await runPipeline({ prompt: scanText, context, policy, guardrails: true, runDownstream: false });
-  const id = saveEvent(req.user.id, out);
-  res.set('x-promptshield-event', String(id));
   
   if (out.action === 'BLOCKED') {
+    const id = saveEvent(req.user.id, out);
+    res.set('x-promptshield-event', String(id));
     return res.status(403).json({ error: { message: out.response, type: 'guardrail_blocked', code: out.category, risk_score: out.risk, event_id: id } });
   }
 
+  const DAILY_LIMIT = Number(process.env.DOWNSTREAM_DAILY_LIMIT) || 25;
+  const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(req.user.id);
+  const quotaExceeded = quotaRow && quotaRow.c >= DAILY_LIMIT;
+
   let data;
-  if (process.env.UPSTREAM_BASE_URL && process.env.UPSTREAM_API_KEY) {
+  if (process.env.UPSTREAM_BASE_URL && process.env.UPSTREAM_API_KEY && !quotaExceeded) {
     try {
       const baseUrl = process.env.UPSTREAM_BASE_URL.replace(/\/$/, '');
       const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -96,9 +105,10 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
       return res.status(502).json({ error: { message: `Upstream error: ${e.message}`, type: 'upstream_error' } });
     }
   } else {
+    const notice = quotaExceeded ? `[Simulated upstream - Daily quota of ${DAILY_LIMIT} exceeded]\n` : `[Simulated ${req.body.model || 'upstream'}]\n`;
     data = {
-      id: `chatcmpl-ps-${id}`, object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: req.body.model || 'promptshield-proxy',
-      choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: `[Simulated ${req.body.model || 'upstream'}]\nThanks for contacting support. Here is a draft reply: "${scanText.slice(0, 300)}"` } }],
+      id: `chatcmpl-ps-${Date.now()}`, object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: req.body.model || 'promptshield-proxy',
+      choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: `${notice}Thanks for contacting support. Here is a draft reply: "${scanText.slice(0, 300)}"` } }],
     };
   }
 
@@ -108,10 +118,12 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
       if (choice.message && choice.message.content) {
         const og = policy.outputGuard ? guardOutput(choice.message.content) : { action: 'PASS', text: choice.message.content };
         if (og.action === 'BLOCK') {
-          // Update event in DB as output leak
-          db.prepare('UPDATE events SET action=?, category=?, risk=?, reason=?, response=? WHERE id=?').run(
-            'BLOCKED', 'OUTPUT_LEAK', 95, 'The model\'s response contained protected system data (canary token or internal notes), so it was withheld.', og.text, id
-          );
+          out.action = 'BLOCKED';
+          out.category = 'OUTPUT_LEAK';
+          out.risk = 95;
+          out.reason = 'The model\'s response contained protected system data (canary token or internal notes), so it was withheld.';
+          const id = saveEvent(req.user.id, out);
+          res.set('x-promptshield-event', String(id));
           return res.status(403).json({ error: { message: og.text, type: 'guardrail_blocked', code: 'OUTPUT_LEAK', risk_score: 95, event_id: id } });
         }
         let finalText = og.text;
@@ -123,6 +135,9 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
     }
   }
 
+  const id = saveEvent(req.user.id, out);
+  res.set('x-promptshield-event', String(id));
+  
   if (!data.promptshield) {
     data.promptshield = { action: out.action, risk_score: out.risk, category: out.category, guard_ms: out.latency.guard };
   }

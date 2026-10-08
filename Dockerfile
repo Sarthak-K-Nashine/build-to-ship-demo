@@ -8,7 +8,6 @@ COPY frontend/package*.json ./frontend/
 COPY backend/package*.json ./backend/
 
 # Install dependencies
-RUN npm ci
 RUN npm ci --prefix frontend
 RUN npm ci --prefix backend
 
@@ -40,6 +39,9 @@ ENV PORT=8080
 ENV DB_PATH=/app/data/promptshield.db
 
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 USER node
 CMD ["npm", "start"]

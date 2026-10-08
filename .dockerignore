@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.git
+.env
+backend/.env
+frontend/dist
+backend/data
+*.db
+*.db-wal
+*.db-shm
+*.bat
+*.command

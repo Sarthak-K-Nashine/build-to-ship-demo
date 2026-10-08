@@ -39,7 +39,7 @@ function Panel({ title, subtitle, data, off, delay = 0 }) {
         <Section label="Reason">
           <p className="text-sm text-body">{data.reason}</p>
           <p className="mt-1 text-xs text-mute">{catLabel(data.category)} · decided by {data.source}</p>
-          {data.rules.length > 0 && <ul className="mt-2.5 flex flex-wrap gap-1.5">{data.rules.map((r, i) => <motion.li initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5 + (i * 0.1) }} key={r.id} className="rounded-md border border-line bg-white px-2 py-0.5 text-xs font-medium text-body">{r.label}</motion.li>)}</ul>}
+          {data.rules.length > 0 && <ul className="mt-2.5 flex flex-wrap gap-1.5">{data.rules.map((r, i) => <motion.li initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5 + (i * 0.1) }} key={r.id} className="rounded-md border border-line bg-white/5 px-2 py-0.5 text-xs font-medium text-body">{r.label}</motion.li>)}</ul>}
         </Section>
       )}
 

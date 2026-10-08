@@ -21,7 +21,7 @@ export default function Benchmark() {
         actions={<Btn id="run-benchmark" onClick={run} disabled={busy} busy={busy} icon="play">{busy ? 'Running…' : 'Run benchmark'}</Btn>} />
       {err && <Notice tone="bad">{err}</Notice>}
       {!b ? (
-        <div className="rounded-xl border border-dashed border-[#d0d5dd] bg-white px-6 py-12 text-center">
+        <div className="rounded-xl border border-dashed border-[#d0d5dd] bg-white/5 px-6 py-12 text-center">
           <p className="text-sm font-medium text-ink">No benchmark run yet</p>
           <p className="mt-1 text-sm text-mute">Click “Run benchmark” to test your policy.</p>
         </div>

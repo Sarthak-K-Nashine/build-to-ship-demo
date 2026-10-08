@@ -20,3 +20,8 @@ services:
         value: gemini-2.5-flash
       - key: WEBHOOK_URL
         value: ""
+        sync: false
+      - key: UPSTREAM_BASE_URL
+        value: ""
+      - key: UPSTREAM_API_KEY
+        sync: false

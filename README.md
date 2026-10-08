@@ -68,7 +68,7 @@ Without `GEMINI_API_KEY` the app runs regex-only and the downstream model is a c
 
 1. Push this repo to a public GitHub repository.
 2. On [Render](https://render.com): **New → Blueprint**, select the repo (it reads `render.yaml`). Or **New → Web Service** with build command `npm run build` and start command `npm start`.
-3. In the service's Environment tab add `GEMINI_API_KEY`. `JWT_SECRET` is generated for you.
+3. In the service's Environment tab add `GEMINI_API_KEY`. `JWT_SECRET` is generated for you. Optionally set `WEBHOOK_URL` (Discord), `UPSTREAM_BASE_URL` (e.g., `https://api.openai.com/v1`) and `UPSTREAM_API_KEY` for proxy forwarding.
 4. Open the URL. The demo account and sample history are seeded on every boot.
 
 Render's free tier sleeps when idle (open the URL once before judging) and its disk is ephemeral, so accounts registered by visitors reset on redeploy; the demo account is re-seeded. For persistence, attach a disk and set `DB_PATH` to it.

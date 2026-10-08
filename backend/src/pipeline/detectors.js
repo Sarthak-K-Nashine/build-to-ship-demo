@@ -39,21 +39,30 @@ export function detectPII(text) {
 }
 
 // Reversible redaction: same value -> same token, vault never leaves the request.
-export function tokenize(text, matches) {
+export function createRedactor() {
   const counters = {}, vault = {}, byValue = {};
-  const toks = matches.map((m) => {
-    const k = m.type + '|' + m.value;
-    if (!byValue[k]) {
-      counters[m.type] = (counters[m.type] || 0) + 1;
-      byValue[k] = `[${m.type}_${counters[m.type]}]`;
-      vault[byValue[k]] = m.value;
-    }
-    return byValue[k];
-  });
-  let out = '', last = 0;
-  matches.forEach((m, i) => { out += text.slice(last, m.start) + toks[i]; last = m.end; });
-  out += text.slice(last);
-  return { sanitized: out, vault, spans: matches.map((m, i) => ({ type: m.type, start: m.start, end: m.end, token: toks[i] })) };
+  const process = (text, matches) => {
+    const toks = matches.map((m) => {
+      const k = m.type + '|' + m.value;
+      if (!byValue[k]) {
+        counters[m.type] = (counters[m.type] || 0) + 1;
+        byValue[k] = `[${m.type}_${counters[m.type]}]`;
+        vault[byValue[k]] = m.value;
+      }
+      return byValue[k];
+    });
+    let out = '', last = 0;
+    matches.forEach((m, i) => { out += text.slice(last, m.start) + toks[i]; last = m.end; });
+    out += text.slice(last);
+    return { sanitized: out, spans: matches.map((m, i) => ({ type: m.type, start: m.start, end: m.end, token: toks[i] })) };
+  };
+  return { process, getVault: () => vault, detokenize: (text) => text.replace(/\[([A-Z_]+_\d+)\]/g, (t) => vault[t] ?? t) };
+}
+
+export function tokenize(text, matches) {
+  const r = createRedactor();
+  const res = r.process(text, matches);
+  return { sanitized: res.sanitized, vault: r.getVault(), spans: res.spans };
 }
 export const detokenize = (text, vault) => text.replace(/\[([A-Z_]+_\d+)\]/g, (t) => vault[t] ?? t);
 

@@ -6,6 +6,8 @@ import { db, getPolicy, setPolicy, saveEvent, parseEvent, DEFAULT_POLICY } from 
 import { runPipeline } from './pipeline/index.js';
 import { runBenchmark } from './benchmark.js';
 import { config } from './config.js';
+import { createRedactor, detectPII } from './pipeline/detectors.js';
+import { guardOutput } from './pipeline/outputGuard.js';
 
 const r = Router();
 const limiter = rateLimit({ windowMs: 60_000, limit: 90, standardHeaders: true, legacyHeaders: false });
@@ -33,14 +35,43 @@ const oaiSchema = z.object({
   messages: z.array(z.object({ role: z.string(), content: z.union([z.string(), z.array(z.any()), z.null()]).optional() })).min(1),
 }).passthrough();
 r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, res) => {
-  const text = (c) => (!c ? '' : typeof c === 'string' ? c : Array.isArray(c) ? c.map((p) => p.text || '').join(' ') : '');
-  const scanText = req.body.messages.filter(m => m.role !== 'system' && m.role !== 'developer').map(m => text(m.content)).join('\n\n');
-  const systemMsg = req.body.messages.find((m) => m.role === 'system' || m.role === 'developer');
-  const context = systemMsg ? text(systemMsg.content) : undefined;
-  
+  if (req.body.stream) {
+    return res.status(400).json({ error: { message: 'stream is not supported yet', type: 'invalid_request_error' } });
+  }
+
+  const policy = getPolicy(req.user.id);
+  const redactor = createRedactor();
+  const clonedBody = structuredClone(req.body);
+
+  const scanTexts = [];
+  const systemMsg = clonedBody.messages.find((m) => m.role === 'system' || m.role === 'developer');
+  const context = systemMsg ? (typeof systemMsg.content === 'string' ? systemMsg.content : Array.isArray(systemMsg.content) ? systemMsg.content.map(p => p.text || '').join(' ') : '') : undefined;
+
+  for (const m of clonedBody.messages) {
+    if (m.role === 'system' || m.role === 'developer') continue;
+    let contentStr = '';
+    if (typeof m.content === 'string') {
+      contentStr = m.content;
+      if (policy.piiMasking) {
+        m.content = redactor.process(contentStr, detectPII(contentStr)).sanitized;
+      }
+    } else if (Array.isArray(m.content)) {
+      m.content.forEach((p) => {
+        if (p.type === 'text' && p.text) {
+          contentStr += p.text + '\n';
+          if (policy.piiMasking) {
+            p.text = redactor.process(p.text, detectPII(p.text)).sanitized;
+          }
+        }
+      });
+    }
+    if (contentStr) scanTexts.push(contentStr);
+  }
+
+  const scanText = scanTexts.join('\n\n');
   if (!scanText.trim()) return res.status(400).json({ error: { message: 'No content to scan', type: 'invalid_request_error' } });
   
-  const out = await runPipeline({ prompt: scanText, context, policy: getPolicy(req.user.id), guardrails: true, runDownstream: false });
+  const out = await runPipeline({ prompt: scanText, context, policy, guardrails: true, runDownstream: false });
   const id = saveEvent(req.user.id, out);
   res.set('x-promptshield-event', String(id));
   
@@ -48,25 +79,54 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
     return res.status(403).json({ error: { message: out.response, type: 'guardrail_blocked', code: out.category, risk_score: out.risk, event_id: id } });
   }
 
+  let data;
   if (process.env.UPSTREAM_BASE_URL && process.env.UPSTREAM_API_KEY) {
     try {
-      const response = await fetch(process.env.UPSTREAM_BASE_URL, {
+      const baseUrl = process.env.UPSTREAM_BASE_URL.replace(/\/$/, '');
+      const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.UPSTREAM_API_KEY}` },
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(clonedBody),
+        signal: AbortSignal.timeout(60000)
       });
-      const data = await response.json();
-      return res.status(response.status).json(data);
+      data = await response.json();
+      if (!response.ok) return res.status(response.status).json(data);
     } catch (e) {
       return res.status(502).json({ error: { message: `Upstream error: ${e.message}`, type: 'upstream_error' } });
     }
+  } else {
+    data = {
+      id: `chatcmpl-ps-${id}`, object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: req.body.model || 'promptshield-proxy',
+      choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: `[Simulated ${req.body.model || 'upstream'}]\nThanks for contacting support. Here is a draft reply: "${scanText.slice(0, 300)}"` } }],
+    };
   }
 
-  res.json({
-    id: `chatcmpl-ps-${id}`, object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: req.body.model || 'promptshield-proxy',
-    choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: `[Simulated ${req.body.model || 'upstream'}]\nThanks for contacting support. Here is a draft reply: "${scanText.slice(0, 300)}"` } }],
-    promptshield: { action: out.action, risk_score: out.risk, category: out.category, guard_ms: out.latency.guard },
-  });
+  // Guard output
+  if (data.choices && Array.isArray(data.choices)) {
+    for (const choice of data.choices) {
+      if (choice.message && choice.message.content) {
+        const og = policy.outputGuard ? guardOutput(choice.message.content) : { action: 'PASS', text: choice.message.content };
+        if (og.action === 'BLOCK') {
+          // Update event in DB as output leak
+          db.prepare('UPDATE events SET action=?, category=?, risk=?, reason=?, response=? WHERE id=?').run(
+            'BLOCKED', 'OUTPUT_LEAK', 95, 'The model\'s response contained protected system data (canary token or internal notes), so it was withheld.', og.text, id
+          );
+          return res.status(403).json({ error: { message: og.text, type: 'guardrail_blocked', code: 'OUTPUT_LEAK', risk_score: 95, event_id: id } });
+        }
+        let finalText = og.text;
+        if (policy.piiMasking && policy.reversibleRedaction) {
+          finalText = redactor.detokenize(finalText);
+        }
+        choice.message.content = finalText;
+      }
+    }
+  }
+
+  if (!data.promptshield) {
+    data.promptshield = { action: out.action, risk_score: out.risk, category: out.category, guard_ms: out.latency.guard };
+  }
+  
+  res.json(data);
 });
 
 /* ---- audit log ---- */

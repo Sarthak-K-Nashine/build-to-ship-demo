@@ -198,6 +198,27 @@ const expressServer = testApp.listen(0, async () => {
   ok('marker at 15900 captured', capturedUserPrompts.some(p => p.includes('E')));
 
   global.fetch = originalFetch;
+  setPolicy(1, { aiMode: 'off' });
+
+  // Task 4: upstream errors are relayed verbatim
+  const oldReply = upstreamReply;
+  upstreamReply = { error: { message: 'Invalid API key: fake-key' } };
+  const originalServerResponse = server.listeners('request')[0];
+  server.removeAllListeners('request');
+  server.on('request', (req, res) => {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: { message: 'Invalid API key: fake-key' } }));
+  });
+  
+  process.env.UPSTREAM_API_KEY = 'fake-key';
+  process.env.UPSTREAM_BASE_URL = UPSTREAM_URL;
+  res = await proxyRequest({ messages: [{ role: 'user', content: 'test upstream error' }] });
+  ok('upstream 401 error is masked', res.status === 401 && res.data?.error?.message === 'Upstream request failed (status 401)', JSON.stringify(res.data));
+  ok('upstream key never leaked in error body', !JSON.stringify(res.data).includes('fake-key'));
+
+  server.removeAllListeners('request');
+  server.on('request', originalServerResponse);
+  upstreamReply = oldReply;
 
   
   server.close();

@@ -122,8 +122,19 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
         body: JSON.stringify(clonedBody),
         signal: AbortSignal.timeout(60000)
       });
-      data = await response.json();
-      if (!response.ok) return res.status(response.status).json(data);
+      const rawBody = await response.text();
+      if (!response.ok) {
+        let errBody = rawBody;
+        try { errBody = JSON.stringify(JSON.parse(rawBody)); } catch(e) {}
+        console.error(`[upstream error ${response.status}]`, errBody.slice(0, 500));
+        const status = (response.status >= 400 && response.status < 500) ? response.status : 502;
+        return res.status(status).json({ error: { type: 'upstream_error', message: `Upstream request failed (status ${response.status})` } });
+      }
+      try {
+        data = JSON.parse(rawBody);
+      } catch (e) {
+        return res.status(502).json({ error: { type: 'upstream_error', message: `Upstream request failed (status ${response.status})` } });
+      }
     } catch (e) {
       return res.status(502).json({ error: { message: `Upstream error: ${e.message}`, type: 'upstream_error' } });
     }

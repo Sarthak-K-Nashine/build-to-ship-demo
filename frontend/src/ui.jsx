@@ -75,12 +75,13 @@ export const PageHeader = ({ title, description, actions }) => (
 
 export const Card = ({ title, description, right, children, className = '', pad = true, delay = 0 }) => (
   <motion.section 
-    initial={{ y: 20, opacity: 0 }} 
-    animate={{ y: 0, opacity: 1 }} 
-    transition={{ delay, duration: 0.4 }}
-    className={`min-w-0 rounded-xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] hover:shadow-md transition-shadow ${className}`}>
+    initial={{ y: 20, opacity: 0, scale: 0.98 }} 
+    animate={{ y: 0, opacity: 1, scale: 1 }} 
+    transition={{ delay, type: 'spring', stiffness: 200, damping: 20 }}
+    whileHover={{ y: -4, boxShadow: '0 12px 30px -4px rgba(37, 87, 214, 0.08), 0 4px 6px -2px rgba(16,24,40,0.04)' }}
+    className={`min-w-0 rounded-xl border border-line bg-white shadow-[0_1px_3px_rgba(16,24,40,0.05)] transition-colors ${className}`}>
     {(title || right) && (
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 px-5 py-4 bg-gray-50/50 rounded-t-xl">
         <div>
           <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
           {description && <p className="mt-0.5 text-[13px] text-mute">{description}</p>}
@@ -94,14 +95,17 @@ export const Card = ({ title, description, right, children, className = '', pad 
 
 export const Stat = ({ label, value, hint, dot, delay = 0 }) => (
   <motion.div 
-    initial={{ scale: 0.95, opacity: 0 }} 
-    animate={{ scale: 1, opacity: 1 }} 
-    transition={{ delay, duration: 0.4 }}
-    whileHover={{ y: -2 }}
-    className="rounded-xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] hover:shadow-md transition-shadow">
-    <div className="flex items-center gap-2 text-[13px] font-medium text-mute">{dot && <span className={`h-2 w-2 rounded-full ${dot}`} />}{label}</div>
-    <div className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.02em] tabular-nums text-ink">{value ?? '–'}</div>
-    {hint && <div className="mt-1 text-xs text-mute">{hint}</div>}
+    initial={{ scale: 0.9, opacity: 0, y: 10 }} 
+    animate={{ scale: 1, opacity: 1, y: 0 }} 
+    transition={{ delay, type: 'spring', stiffness: 300, damping: 25 }}
+    whileHover={{ y: -4, scale: 1.02, boxShadow: '0 12px 30px -4px rgba(37, 87, 214, 0.12), 0 4px 6px -2px rgba(16,24,40,0.04)' }}
+    className="rounded-xl border border-line bg-gradient-to-b from-white to-gray-50/30 p-5 shadow-[0_2px_4px_rgba(16,24,40,0.04)] relative overflow-hidden group">
+    <motion.div initial={false} animate={{ opacity: 0 }} whileHover={{ opacity: 1 }} className="absolute inset-0 bg-gradient-to-tr from-brand/5 to-transparent pointer-events-none transition-opacity duration-300" />
+    <div className="relative z-10">
+      <div className="flex items-center gap-2 text-[13px] font-medium text-mute">{dot && <span className={`h-2 w-2 rounded-full shadow-sm ${dot}`} />}{label}</div>
+      <div className="mt-2 text-[28px] font-bold leading-tight tracking-[-0.02em] tabular-nums text-ink group-hover:text-brand transition-colors">{value ?? '–'}</div>
+      {hint && <div className="mt-1 text-xs text-mute/80">{hint}</div>}
+    </div>
   </motion.div>
 );
 

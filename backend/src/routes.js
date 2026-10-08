@@ -47,14 +47,9 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
   const policy = getPolicy(req.user.id);
   const redactor = createRedactor();
   const clonedBody = structuredClone(req.body);
-
   const scanTexts = [];
-  const systemMsg = clonedBody.messages.find((m) => m.role === 'system' || m.role === 'developer');
-  const context = systemMsg ? (typeof systemMsg.content === 'string' ? systemMsg.content : Array.isArray(systemMsg.content) ? systemMsg.content.map(p => p.text || '').join(' ') : '') : undefined;
 
   for (const m of clonedBody.messages) {
-    if (m.role === 'system' || m.role === 'developer') continue;
-    
     let contentStr = '';
     if (typeof m.content === 'string') {
       contentStr = m.content;
@@ -71,18 +66,19 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
         }
       });
     }
-    if (contentStr && m.role !== 'assistant') scanTexts.push(contentStr);
+    const isScanTarget = m.role !== 'assistant' && m.role !== 'system' && m.role !== 'developer';
+    if (contentStr && isScanTarget) scanTexts.push(contentStr);
 
     if (m.name && typeof m.name === 'string') {
       let nameStr = m.name;
       if (policy.piiMasking) m.name = redactor.process(nameStr, detectPII(nameStr)).sanitized;
-      if (nameStr && m.role !== 'assistant') scanTexts.push(nameStr);
+      if (nameStr && isScanTarget) scanTexts.push(nameStr);
     }
     
     if (m.function_call && typeof m.function_call.arguments === 'string') {
       let args = m.function_call.arguments;
       if (policy.piiMasking) args = redactor.process(args, detectPII(args)).sanitized;
-      if (args && m.role !== 'assistant') scanTexts.push(args);
+      if (args && isScanTarget) scanTexts.push(args);
       m.function_call.arguments = args;
     }
     
@@ -91,12 +87,15 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
         if (tc.function && typeof tc.function.arguments === 'string') {
           let args = tc.function.arguments;
           if (policy.piiMasking) args = redactor.process(args, detectPII(args)).sanitized;
-          if (args && m.role !== 'assistant') scanTexts.push(args);
+          if (args && isScanTarget) scanTexts.push(args);
           tc.function.arguments = args;
         }
       });
     }
   }
+
+  const systemMsg = clonedBody.messages.find((m) => m.role === 'system' || m.role === 'developer');
+  const context = systemMsg ? (typeof systemMsg.content === 'string' ? systemMsg.content : Array.isArray(systemMsg.content) ? systemMsg.content.map(p => p.text || '').join(' ') : '') : undefined;
 
   const scanText = scanTexts.join('\n\n');
   if (scanText.length > 16000) return res.status(413).json({ error: { message: 'Request too large: scanned text exceeds 16000 characters', type: 'invalid_request_error' } });

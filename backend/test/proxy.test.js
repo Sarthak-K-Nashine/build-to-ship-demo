@@ -164,6 +164,41 @@ const expressServer = testApp.listen(0, async () => {
   res = await proxyRequest({ messages: [{ role: 'user', content: 'hello' }] });
   ok('fresh setup ships live placeholder secrets (returns 200 simulation)', res.status === 200 && res.data.choices[0].message.content.includes('[Simulated'));
 
+  // Task 3: Inspector windowing and system message PII
+  const originalFetch = global.fetch;
+  let geminiRequests = [];
+  global.fetch = async (url, options) => {
+    if (url.includes('generativelanguage.googleapis.com')) {
+      geminiRequests.push(JSON.parse(options.body));
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"threat_category": "SAFE", "risk_score": 0, "reason": "ok"}' }] } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return originalFetch(url, options);
+  };
+  process.env.GEMINI_API_KEY = 'dummy';
+  config.geminiKey = 'dummy';
+  setPolicy(1, { aiMode: 'always', piiMasking: true });
+
+  const longText = Array.from({ length: 16000 }).map((_, i) => i === 1000 ? 'A' : i === 6000 ? 'B' : i === 12400 ? 'C' : i === 14500 ? 'D' : i === 15900 ? 'E' : 'x').join('');
+  await proxyRequest({
+    messages: [
+      { role: 'system', content: 'My email is sys@test.com' },
+      { role: 'user', content: longText }
+    ]
+  });
+
+  const capturedSystemPrompts = geminiRequests.map(r => r.systemInstruction?.parts[0]?.text || '');
+  const capturedUserPrompts = geminiRequests.map(r => r.contents[0].parts[0].text);
+  
+  ok('system message email does not reach upstream', !lastUpstreamBody.messages.some(m => m.content && m.content.includes('sys@test.com')));
+  ok('system message email does not reach Gemini raw', !capturedSystemPrompts.some(s => s.includes('sys@test.com')) && capturedSystemPrompts.some(s => s.includes('[EMAIL_1]')));
+  ok('marker at 1000 captured', capturedUserPrompts.some(p => p.includes('A')));
+  ok('marker at 6000 captured', capturedUserPrompts.some(p => p.includes('B')));
+  ok('marker at 12400 captured', capturedUserPrompts.some(p => p.includes('C')));
+  ok('marker at 14500 captured', capturedUserPrompts.some(p => p.includes('D')));
+  ok('marker at 15900 captured', capturedUserPrompts.some(p => p.includes('E')));
+
+  global.fetch = originalFetch;
+
   
   server.close();
   expressServer.close();

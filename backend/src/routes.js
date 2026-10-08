@@ -24,7 +24,7 @@ const publicOut = (o, eventId) => ({
 });
 
 r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
-  const DAILY_LIMIT = Number(process.env.DOWNSTREAM_DAILY_LIMIT) || 25;
+  const DAILY_LIMIT = config.downstreamDailyLimit;
   const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(req.user.id);
   const quotaExceeded = quotaRow && quotaRow.c >= DAILY_LIMIT;
 
@@ -109,17 +109,17 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
     return res.status(403).json({ error: { message: out.response, type: 'guardrail_blocked', code: out.category, risk_score: out.risk, event_id: id } });
   }
 
-  const DAILY_LIMIT = Number(process.env.DOWNSTREAM_DAILY_LIMIT) || 25;
+  const DAILY_LIMIT = config.downstreamDailyLimit;
   const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(req.user.id);
   const quotaExceeded = quotaRow && quotaRow.c >= DAILY_LIMIT;
 
   let data;
-  if (process.env.UPSTREAM_BASE_URL && process.env.UPSTREAM_API_KEY && !quotaExceeded) {
+  if (config.upstreamBaseUrl && config.upstreamApiKey && !quotaExceeded) {
     try {
-      const baseUrl = process.env.UPSTREAM_BASE_URL.replace(/\/$/, '');
+      const baseUrl = config.upstreamBaseUrl.replace(/\/$/, '');
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.UPSTREAM_API_KEY}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.upstreamApiKey}` },
         body: JSON.stringify(clonedBody),
         signal: AbortSignal.timeout(60000)
       });

@@ -158,6 +158,12 @@ const expressServer = testApp.listen(0, async () => {
   });
   const nameArg = lastUpstreamBody.messages[0].name;
   ok('name field containing email reaches upstream only as a token', nameArg.includes('[EMAIL_1]') && !nameArg.includes('bob@example.com'), nameArg);
+
+  // Task 2: placeholder secrets are ignored and simulate instead
+  process.env.UPSTREAM_API_KEY = 'your_upstream_api_key_here';
+  res = await proxyRequest({ messages: [{ role: 'user', content: 'hello' }] });
+  ok('fresh setup ships live placeholder secrets (returns 200 simulation)', res.status === 200 && res.data.choices[0].message.content.includes('[Simulated'));
+
   
   server.close();
   expressServer.close();

@@ -8,14 +8,14 @@ export const THRESH = { low: 80, medium: 60, high: 40 };
 const ms = (t) => +(performance.now() - t).toFixed(1);
 
 async function sendWebhook(result, isBenchmark) {
-  if (!process.env.WEBHOOK_URL || result.risk < 80 || isBenchmark) return;
+  if (!config.webhookUrl || result.risk < 80 || isBenchmark) return;
   try {
     const safePrompt = result.storedPrompt.replace(/`/g, 'ˋ');
     const payload = {
       content: `🚨 **High-Risk Threat Blocked by PromptShield** 🚨\n**Category:** ${result.category}\n**Risk Score:** ${result.risk}/100\n**Reason:** ${result.reason}\n\n**Attempted Prompt:**\n\`\`\`text\n${safePrompt.slice(0, 1000)}\n\`\`\``,
       allowed_mentions: { parse: [] }
     };
-    await fetch(process.env.WEBHOOK_URL, {
+    await fetch(config.webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

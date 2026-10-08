@@ -25,8 +25,13 @@ const publicOut = (o, eventId) => ({
 
 const checkQuota = (userId) => {
   const DAILY_LIMIT = config.downstreamDailyLimit;
-  const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND seeded=0 AND real_model=1 AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(userId);
-  return quotaRow && quotaRow.c >= DAILY_LIMIT;
+  const GLOBAL_LIMIT = config.globalDailyRealModelLimit;
+  
+  const userCount = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND seeded=0 AND real_model=1`).get(userId).c;
+  if (userCount >= DAILY_LIMIT) return true;
+  
+  const globalCount = db.prepare(`SELECT COUNT(*) as c FROM events WHERE date(created_at) = date('now') AND seeded=0 AND real_model=1`).get().c;
+  return globalCount >= GLOBAL_LIMIT;
 };
 
 r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {

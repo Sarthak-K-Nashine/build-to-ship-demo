@@ -29,5 +29,6 @@ export const config = {
   get upstreamBaseUrl() { return getLiveEnv('UPSTREAM_BASE_URL'); },
   get upstreamApiKey() { return getLiveEnv('UPSTREAM_API_KEY'); },
   get webhookUrl() { return getLiveEnv('WEBHOOK_URL'); },
-  get downstreamDailyLimit() { return Number(getLiveEnv('DOWNSTREAM_DAILY_LIMIT')) || 25; }
+  get downstreamDailyLimit() { return Number(getLiveEnv('DOWNSTREAM_DAILY_LIMIT')) || 25; },
+  get globalDailyRealModelLimit() { return Number(getLiveEnv('GLOBAL_DAILY_REAL_MODEL_LIMIT')) || 200; }
 };

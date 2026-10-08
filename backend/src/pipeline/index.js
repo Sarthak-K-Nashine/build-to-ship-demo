@@ -44,7 +44,7 @@ export async function runPipeline({ prompt, context, policy, guardrails = true, 
       action: 'UNGUARDED', category: 'NONE', risk: 0, source: 'none',
       reason: 'Guardrails were off, so the prompt went straight to the model.',
       rules: [], spans: [], storedPrompt: tok.sanitized, llmInput: prompt, response: llm.text,
-      llmMode: llm.mode, leaked: leak.action !== 'PASS', stages,
+      llmMode: llm.mode, leaked: leak.action !== 'PASS', stages, realModel: llm.mode === 'gemini',
       latency: { guard: 0, llm: stages[0].ms, total: ms(T0) }, totalMs: ms(T0),
     };
   }

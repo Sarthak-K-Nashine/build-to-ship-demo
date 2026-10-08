@@ -25,3 +25,7 @@ services:
         value: ""
       - key: UPSTREAM_API_KEY
         sync: false
+      - key: DOWNSTREAM_DAILY_LIMIT
+        value: "25"
+      - key: GLOBAL_DAILY_REAL_MODEL_LIMIT
+        value: "200"

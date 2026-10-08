@@ -70,7 +70,7 @@ Without `GEMINI_API_KEY` the app runs regex-only and the downstream model is a c
 
 1. Push this repo to a public GitHub repository.
 2. On [Render](https://render.com): **New → Blueprint**, select the repo (it reads `render.yaml`). Or **New → Web Service** with build command `npm run build` and start command `npm start`.
-3. In the service's Environment tab add `GEMINI_API_KEY`. `JWT_SECRET` is generated for you. Optionally set `WEBHOOK_URL` (Discord), `UPSTREAM_BASE_URL` (e.g., `https://api.openai.com/v1`) and `UPSTREAM_API_KEY` for proxy forwarding.
+3. In the service's Environment tab add `GEMINI_API_KEY`. `JWT_SECRET` is generated for you. Optionally set `WEBHOOK_URL` (Discord), `UPSTREAM_BASE_URL` (e.g., `https://api.openai.com/v1`) and `UPSTREAM_API_KEY` for proxy forwarding, and quota limits `DOWNSTREAM_DAILY_LIMIT` and `GLOBAL_DAILY_REAL_MODEL_LIMIT` (default 200).
 4. Open the URL. The demo account and sample history are seeded on every boot.
 
 Render's free tier sleeps when idle (open the URL once before judging) and its disk is ephemeral, so accounts registered by visitors reset on redeploy; the demo account is re-seeded. For persistence, attach a disk and set `DB_PATH` to it.
@@ -91,9 +91,9 @@ Deploy `backend` as a Render web service (root directory `backend`, build `npm i
 | GET / PUT | `/api/policy` | per-user policy |
 | POST / GET | `/api/benchmark`, `/api/benchmark/latest` | red-team suite |
 
-## Limitations
+## Known limitations
 
-Pattern rules can be evaded by novel phrasing, and the Gemini tier reduces but does not eliminate that. PII detection is pattern-based (email, phone, SSN, Luhn-checked cards, Aadhaar, PAN, API keys) and misses names and addresses. The canary only catches verbatim leaks. This is defense in depth, not a guarantee.
+Non-text message parts (images, audio) are not scanned or redacted. PII detection is pattern-based and does not find names or addresses. The hash chain detects edits and truncation by someone who can only modify rows, not an attacker who rewrites the database and the head. The per-user and global quotas limit real-model spend but are not a substitute for provider-side spend limits. Pattern rules can be evaded by novel phrasing, and the Gemini tier reduces but does not eliminate that. The canary only catches verbatim leaks. This is defense in depth, not a guarantee.
 
 ## Changelog
 

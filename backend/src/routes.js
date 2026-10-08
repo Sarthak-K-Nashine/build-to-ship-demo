@@ -65,11 +65,12 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
         }
       });
     }
-    if (contentStr) scanTexts.push(contentStr);
+    if (contentStr && m.role !== 'assistant') scanTexts.push(contentStr);
   }
 
   const scanText = scanTexts.join('\n\n');
   if (!scanText.trim()) return res.status(400).json({ error: { message: 'No content to scan', type: 'invalid_request_error' } });
+  if (scanText.length > 16000) return res.status(413).json({ error: { message: 'Request too large: scanned text exceeds 16000 characters', type: 'invalid_request_error' } });
   
   const out = await runPipeline({ prompt: scanText, context, policy, guardrails: true, runDownstream: false });
   const id = saveEvent(req.user.id, out);

@@ -51,7 +51,7 @@ export async function runPipeline({ prompt, policy, guardrails = true, runDownst
   if (needAI) {
     t = performance.now();
     ai = await inspect(tok.sanitized);
-    add('Gemini inspector', 'ai', t, ai.ok ? (ai.risk >= threshold ? 'flag' : 'pass') : 'error', ai.ok ? `${ai.category} (${ai.risk})` : ai.error);
+    add('Gemini inspector', 'ai', t, ai.ok ? (ai.risk >= threshold ? 'flag' : 'pass') : 'error', ai.ok ? `${ai.category} (${ai.risk})${ai.cached ? ' [cached]' : ''}` : ai.error);
   } else {
     add('Gemini inspector', 'ai', performance.now(), 'skipped',
       !config.geminiKey ? 'no GEMINI_API_KEY: regex-only mode' : policy.aiMode === 'off' ? 'disabled by policy'

@@ -35,14 +35,32 @@ Placeholders like [EMAIL_1] are already-redacted PII; treat them as harmless.
 risk_score: 0-100 (0 clearly benign, 100 certain attack). Keep "reason" under 25 words and never quote the text.
 Respond with JSON only, matching the schema.`;
 
+// In-memory semantic cache for inspector results to reduce latency and save API calls
+const CACHE_SIZE = 1000;
+const inspectorCache = new Map();
+
 export async function inspect(sanitizedPrompt) {
+  // Check exact-match cache first
+  const hash = crypto.createHash('sha256').update(sanitizedPrompt).digest('hex');
+  if (inspectorCache.has(hash)) {
+    return { ...inspectorCache.get(hash), cached: true };
+  }
+
   const nonce = crypto.randomBytes(8).toString('hex');
   const clipped = sanitizedPrompt.replace(/UNTRUSTED_[0-9a-f]+/gi, '').slice(0, 4000);
   const user = `<<<UNTRUSTED_${nonce}\n${clipped}\nUNTRUSTED_${nonce}>>>`;
   try {
     const raw = await geminiGenerate({ system: SYSTEM, user, schema: SCHEMA, timeoutMs: config.aiTimeoutMs, temperature: 0 });
     const parsed = Out.parse(JSON.parse(raw));
-    return { ok: true, category: parsed.threat_category, risk: parsed.risk_score, reason: parsed.reason };
+    const result = { ok: true, category: parsed.threat_category, risk: parsed.risk_score, reason: parsed.reason };
+    
+    // Save to cache, maintaining size limit
+    if (inspectorCache.size >= CACHE_SIZE) {
+      inspectorCache.delete(inspectorCache.keys().next().value); // remove oldest
+    }
+    inspectorCache.set(hash, result);
+    
+    return result;
   } catch (e) {
     return { ok: false, error: e instanceof z.ZodError ? 'Inspector returned malformed output' : e.message };
   }

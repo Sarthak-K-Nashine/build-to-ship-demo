@@ -2,6 +2,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { config } from './config.js';
 
 fs.mkdirSync(path.dirname(config.dbPath), { recursive: true });
@@ -32,7 +33,9 @@ CREATE TABLE IF NOT EXISTS events(
   pii TEXT,
   sanitized TEXT,
   latency TEXT,
-  seeded INTEGER NOT NULL DEFAULT 0
+  seeded INTEGER NOT NULL DEFAULT 0,
+  prev_hash TEXT,
+  hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, id DESC);
 CREATE TABLE IF NOT EXISTS benchmarks(
@@ -42,6 +45,14 @@ CREATE TABLE IF NOT EXISTS benchmarks(
   json TEXT NOT NULL
 );
 `);
+
+// Alter table to add hash columns for existing setups
+try {
+  db.exec('ALTER TABLE events ADD COLUMN prev_hash TEXT;');
+  db.exec('ALTER TABLE events ADD COLUMN hash TEXT;');
+} catch (e) {
+  // columns likely exist
+}
 
 export const DEFAULT_POLICY = {
   piiMasking: true,
@@ -66,10 +77,22 @@ export function setPolicy(userId, policy) {
 }
 
 export function saveEvent(userId, out, extra = {}) {
+  const lastEvent = db.prepare('SELECT hash FROM events WHERE user_id=? ORDER BY id DESC LIMIT 1').get(userId);
+  const prevHash = lastEvent?.hash || '0000000000000000000000000000000000000000000000000000000000000000';
+  
+  const rulesJson = JSON.stringify((out.rules || []).map(({ id, label, explain, w }) => ({ id, label, explain, w })));
+  const piiJson = JSON.stringify([...new Set((out.spans || []).map((s) => s.type))]);
+  const sanitized = (out.storedPrompt || '').slice(0, 2000);
+  const latencyJson = JSON.stringify(out.latency || {});
+  
+  // Compute tamper-evident hash
+  const dataToHash = `${prevHash}|${userId}|${out.action}|${out.category}|${out.risk}|${sanitized}`;
+  const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+
   const info = db
     .prepare(
-      `INSERT INTO events(user_id,guardrails,action,category,risk,source,reason,rules,pii,sanitized,latency,seeded,created_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(?,datetime('now')))`
+      `INSERT INTO events(user_id,guardrails,action,category,risk,source,reason,rules,pii,sanitized,latency,seeded,created_at,prev_hash,hash)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(?,datetime('now')),?,?)`
     )
     .run(
       userId,
@@ -79,12 +102,14 @@ export function saveEvent(userId, out, extra = {}) {
       out.risk,
       out.source || null,
       out.reason || null,
-      JSON.stringify((out.rules || []).map(({ id, label, explain, w }) => ({ id, label, explain, w }))),
-      JSON.stringify([...new Set((out.spans || []).map((s) => s.type))]),
-      (out.storedPrompt || '').slice(0, 2000),
-      JSON.stringify(out.latency || {}),
+      rulesJson,
+      piiJson,
+      sanitized,
+      latencyJson,
       extra.seeded ? 1 : 0,
-      extra.createdAt || null
+      extra.createdAt || null,
+      prevHash,
+      hash
     );
   return Number(info.lastInsertRowid);
 }

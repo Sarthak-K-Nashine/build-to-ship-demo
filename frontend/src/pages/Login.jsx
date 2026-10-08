@@ -35,7 +35,7 @@ export default function Login() {
             <p className="mt-1.5 text-sm text-mute">{isLogin ? 'Enter your details to open the console.' : 'Set up an account to test and monitor your guardrails.'}</p>
           </div>
 
-          <div className="rounded-xl border border-line bg-white p-6 shadow-[0_1px_3px_rgba(16,24,40,0.06),0_1px_2px_rgba(16,24,40,0.04)] sm:p-8">
+          <div className="rounded-xl border border-line bg-black/40 backdrop-blur-2xl shadow-[0_4px_24px_rgba(0,0,0,0.3)] p-6 sm:p-8">
             <form onSubmit={submit} className="space-y-5">
               <div>
                 <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-body">Email</label>
@@ -47,7 +47,7 @@ export default function Login() {
               </div>
               {isLogin && (
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-body">
-                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 rounded border-gray-300 accent-[#2557d6]" />
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 rounded border-gray-600 bg-white/5 accent-[#00f0ff]" />
                   Keep me signed in
                 </label>
               )}

@@ -11,7 +11,7 @@ Confidential customer records:
 1002 | Marcus Lee | marcus.lee@acmebank.example | 4111 1111 1111 1111`;
 
 export async function callLLM({ prompt, targetModel = 'gpt-4o' }) {
-  if (config.geminiKey && targetModel === 'gemini-1-5-pro') {
+  if (config.geminiKey && targetModel === 'gemini-2-5-flash') {
     try {
       const text = await geminiGenerate({ system: SYSTEM_PROMPT, user: prompt, timeoutMs: 20000, temperature: 0.7 });
       return { text, mode: 'gemini' };

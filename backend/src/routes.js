@@ -30,23 +30,41 @@ r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
 /* ---- OpenAI-compatible drop-in proxy: change one base URL ---- */
 const oaiSchema = z.object({
   model: z.string().optional(),
-  messages: z.array(z.object({ role: z.string(), content: z.union([z.string(), z.array(z.any())]) })).min(1),
-});
+  messages: z.array(z.object({ role: z.string(), content: z.union([z.string(), z.array(z.any()), z.null()]).optional() })).min(1),
+}).passthrough();
 r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, res) => {
-  const text = (c) => (typeof c === 'string' ? c : c.map((p) => p.text || '').join(' '));
-  const lastUser = [...req.body.messages].reverse().find((m) => m.role === 'user');
+  const text = (c) => (!c ? '' : typeof c === 'string' ? c : Array.isArray(c) ? c.map((p) => p.text || '').join(' ') : '');
+  const scanText = req.body.messages.filter(m => m.role !== 'system' && m.role !== 'developer').map(m => text(m.content)).join('\n\n');
   const systemMsg = req.body.messages.find((m) => m.role === 'system' || m.role === 'developer');
   const context = systemMsg ? text(systemMsg.content) : undefined;
-  if (!lastUser) return res.status(400).json({ error: { message: 'No user message', type: 'invalid_request_error' } });
-  const out = await runPipeline({ prompt: text(lastUser.content), context, policy: getPolicy(req.user.id), guardrails: true });
+  
+  if (!scanText.trim()) return res.status(400).json({ error: { message: 'No content to scan', type: 'invalid_request_error' } });
+  
+  const out = await runPipeline({ prompt: scanText, context, policy: getPolicy(req.user.id), guardrails: true, runDownstream: false });
   const id = saveEvent(req.user.id, out);
   res.set('x-promptshield-event', String(id));
+  
   if (out.action === 'BLOCKED') {
     return res.status(403).json({ error: { message: out.response, type: 'guardrail_blocked', code: out.category, risk_score: out.risk, event_id: id } });
   }
+
+  if (process.env.UPSTREAM_BASE_URL && process.env.UPSTREAM_API_KEY) {
+    try {
+      const response = await fetch(process.env.UPSTREAM_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.UPSTREAM_API_KEY}` },
+        body: JSON.stringify(req.body)
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (e) {
+      return res.status(502).json({ error: { message: `Upstream error: ${e.message}`, type: 'upstream_error' } });
+    }
+  }
+
   res.json({
     id: `chatcmpl-ps-${id}`, object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: req.body.model || 'promptshield-proxy',
-    choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: out.response } }],
+    choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: `[Simulated ${req.body.model || 'upstream'}]\nThanks for contacting support. Here is a draft reply: "${scanText.slice(0, 300)}"` } }],
     promptshield: { action: out.action, risk_score: out.risk, category: out.category, guard_ms: out.latency.guard },
   });
 });

@@ -7,23 +7,26 @@ import { config } from '../config.js';
 export const THRESH = { low: 80, medium: 60, high: 40 };
 const ms = (t) => +(performance.now() - t).toFixed(1);
 
-async function sendWebhook(result, prompt) {
-  if (!process.env.WEBHOOK_URL || result.risk < 80) return;
+async function sendWebhook(result, isBenchmark) {
+  if (!process.env.WEBHOOK_URL || result.risk < 80 || isBenchmark) return;
   try {
+    const safePrompt = result.storedPrompt.replace(/`/g, '\\`');
     const payload = {
-      content: `🚨 **High-Risk Threat Blocked by PromptShield** 🚨\n**Category:** ${result.category}\n**Risk Score:** ${result.risk}/100\n**Reason:** ${result.reason}\n\n**Attempted Prompt:**\n\`\`\`text\n${prompt.slice(0, 1000)}\n\`\`\``
+      content: `🚨 **High-Risk Threat Blocked by PromptShield** 🚨\n**Category:** ${result.category}\n**Risk Score:** ${result.risk}/100\n**Reason:** ${result.reason}\n\n**Attempted Prompt:**\n\`\`\`text\n${safePrompt.slice(0, 1000)}\n\`\`\``,
+      allowed_mentions: { parse: [] }
     };
     await fetch(process.env.WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(3000)
     });
   } catch (e) {
     console.error('Webhook failed:', e.message);
   }
 }
 
-export async function runPipeline({ prompt, context, policy, guardrails = true, runDownstream = true, targetModel = 'simulated' }) {
+export async function runPipeline({ prompt, context, policy, guardrails = true, runDownstream = true, targetModel = 'simulated', isBenchmark = false }) {
   const T0 = performance.now();
   const stages = [];
   const add = (name, layer, t, status, detail) => stages.push({ name, layer, ms: ms(t), status, detail });
@@ -62,7 +65,7 @@ export async function runPipeline({ prompt, context, policy, guardrails = true, 
   /* ---- layer 2: tiered Gemini inspection ---- */
   const sticky = rules.some((r) => r.sticky) || regexRisk >= 70;
   const aiAvailable = !!config.geminiKey && policy.aiMode !== 'off';
-  const needAI = aiAvailable && !sticky && (policy.aiMode === 'always' || regexRisk > 0 || looksSuspicious(prompt) || context);
+  const needAI = aiAvailable && !sticky && (policy.aiMode === 'always' || regexRisk > 0 || looksSuspicious(prompt));
   let ai = null;
   if (needAI) {
     t = performance.now();
@@ -141,7 +144,7 @@ export async function runPipeline({ prompt, context, policy, guardrails = true, 
   result.totalMs = result.latency.total;
   
   // Send async webhook alert if high risk
-  sendWebhook(result, prompt);
+  sendWebhook(result, isBenchmark);
   
   return result;
 }

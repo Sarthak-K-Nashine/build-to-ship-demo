@@ -17,6 +17,6 @@ services:
       - key: GEMINI_API_KEY
         sync: false   # paste it in the Render dashboard; never commit it
       - key: GEMINI_MODEL
-        value: gemini-2.5-pro
+        value: gemini-2.5-flash
       - key: WEBHOOK_URL
         value: ""

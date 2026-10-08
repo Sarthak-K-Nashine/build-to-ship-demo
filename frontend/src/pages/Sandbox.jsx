@@ -59,6 +59,12 @@ export default function Sandbox() {
   const [compare, setCompare] = useState(true);
   const [sent, setSent] = useState('');
 
+  React.useEffect(() => {
+    api.get('/api/policy').then((r) => {
+      if (r.data?.aiConfigured) setTargetModel('gemini-2-5-flash');
+    }).catch(() => {});
+  }, []);
+
   async function run() {
     if (!prompt.trim() || busy) return;
     setBusy(true); setSent(prompt);
@@ -102,7 +108,7 @@ export default function Sandbox() {
             <select className="input font-mono text-[13px] !py-[0.45rem]" value={targetModel} onChange={(e) => setTargetModel(e.target.value)}>
               <option value="gpt-4o" className="bg-black text-white">OpenAI GPT-4o (Simulated)</option>
               <option value="claude-3-5-sonnet" className="bg-black text-white">Anthropic Claude 3.5 Sonnet (Simulated)</option>
-              <option value="gemini-1-5-pro" className="bg-black text-white">Google Gemini 1.5 Pro</option>
+              <option value="gemini-2-5-flash" className="bg-black text-white">Google Gemini 2.5 Flash</option>
               <option value="llama-3" className="bg-black text-white">Meta Llama 3 (Simulated)</option>
             </select>
           </div>

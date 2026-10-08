@@ -35,15 +35,18 @@ Placeholders like [EMAIL_1] are already-redacted PII; treat them as harmless.
 risk_score: 0-100 (0 clearly benign, 100 certain attack). Keep "reason" under 25 words and never quote the text.
 Respond with JSON only, matching the schema.`;
 
-// In-memory semantic cache for inspector results to reduce latency and save API calls
+// In-memory LRU cache (exact-match) for inspector results to reduce latency and save API calls
 const CACHE_SIZE = 1000;
 const inspectorCache = new Map();
 
 export async function inspect(sanitizedPrompt, context = '') {
-  // Check exact-match cache first
+  // Check exact-match LRU cache first
   const hash = crypto.createHash('sha256').update(sanitizedPrompt + context).digest('hex');
   if (inspectorCache.has(hash)) {
-    return { ...inspectorCache.get(hash), cached: true };
+    const value = inspectorCache.get(hash);
+    inspectorCache.delete(hash);
+    inspectorCache.set(hash, value); // move to end for LRU
+    return { ...value, cached: true };
   }
 
   const nonce = crypto.randomBytes(8).toString('hex');

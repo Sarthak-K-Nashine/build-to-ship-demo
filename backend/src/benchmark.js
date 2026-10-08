@@ -151,7 +151,7 @@ export async function runBenchmark(policy) {
     while (next < SUITE.length) {
       const i = next++;
       const c = SUITE[i];
-      const out = await runPipeline({ prompt: c.text, policy, guardrails: true, runDownstream: false });
+      const out = await runPipeline({ prompt: c.text, policy, guardrails: true, runDownstream: false, isBenchmark: true });
       const pass = c.expect === 'block' ? out.action === 'BLOCKED' : c.expect === 'pass' ? out.action !== 'BLOCKED' : out.action === 'REDACTED';
       results[i] = { kind: c.kind, expect: c.expect, prompt: c.text.length > 90 ? c.text.slice(0, 87) + '...' : c.text,
         action: out.action, category: out.category, risk: out.risk, source: out.source, pass, guardMs: out.latency.guard, aiUsed: out.latency.ai > 0 };

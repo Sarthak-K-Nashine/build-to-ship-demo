@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* Neutral, light enterprise palette with a single brand blue. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: #f7f8fa;
+  --color-line: #e4e7ec;
+  --color-ink: #101828;
+  --color-body: #344054;
+  --color-mute: #667085;
+  --color-faint: #98a2b3;
+
+  --color-brand: #2557d6;
+  --color-brand-dark: #1d46b3;
+  --color-brand-soft: #eef3ff;
+
+  --color-ok: #067647;
+  --color-ok-soft: #ecfdf3;
+  --color-ok-line: #abefc6;
+  --color-warn: #b54708;
+  --color-warn-soft: #fffaeb;
+  --color-warn-line: #fedf89;
+  --color-bad: #b42318;
+  --color-bad-soft: #fef3f2;
+  --color-bad-line: #fecdca;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+@layer components {
+  .input {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid #d0d5dd;
+    background: #fff;
+    color: var(--color-ink);
+    padding: 0.55rem 0.75rem;
+    font-size: 14px;
+    line-height: 1.4;
+    box-shadow: 0 1px 2px rgb(16 24 40 / 0.05);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .input::placeholder { color: var(--color-faint); }
+  .input:focus { border-color: #84a5f0; box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 0 0 4px #e0e9ff; }
+
+  .switch {
+    appearance: none;
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: #e4e7ec;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(16 24 40 / 0.15);
+    transition: transform 0.15s ease;
+  }
+  .switch:checked { background: var(--color-brand); }
+  .switch:checked::after { transform: translateX(16px); }
+
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition: none !important; }
+}

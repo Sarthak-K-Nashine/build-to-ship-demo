@@ -1,0 +1,84 @@
+PROMPTSHIELD - HOW TO OPEN IT
+=============================
+
+PromptShield is a safety filter for AI chatbots. It catches people trying to
+trick the AI and hides private data like phone numbers and card numbers before
+the AI sees them. Everything runs on your own computer. Nothing is uploaded.
+
+You don't need to know any coding. Follow the steps for your computer.
+
+
+WINDOWS
+-------
+1. Right-click the zip file and choose "Extract All...", then click "Extract".
+   (Double-clicking inside the zip without extracting will NOT work.)
+2. Open the extracted "promptshield" folder.
+3. Double-click  "Start PromptShield (Windows)".
+   - If a blue box says "Windows protected your PC":
+     click "More info", then "Run anyway".
+   - If it asks "Do you want to run this file?", click "Run".
+   - The first time, it may install Node.js (a free program it needs).
+     If Windows asks "Do you want to allow this app to make changes?", click Yes.
+     This takes a minute or two. Only happens once.
+4. Your web browser opens PromptShield. Click "Use the demo account".
+
+To stop it: close the black window.
+To start it again later: double-click "Start PromptShield (Windows)" again.
+
+
+MAC
+---
+1. Double-click the zip file to unzip it.
+2. Open the "promptshield" folder.
+3. RIGHT-click (or Control-click) "Start PromptShield (Mac)" and choose "Open",
+   then click "Open" again in the box that appears.
+   (A normal double-click shows a warning the first time. Right-click > Open
+   gets past it, and later you can just double-click.)
+4. If it says Node.js is needed: your browser opens nodejs.org. Download the
+   "LTS" macOS Installer, run it, then repeat step 3.
+5. Your web browser opens PromptShield. Click "Use the demo account".
+
+To stop it: close the Terminal window.
+
+
+WHAT TO TRY
+-----------
+- Sandbox:   click the grey example buttons, then "Run with and without
+             guardrails". Left = an unprotected AI. Right = with PromptShield.
+- Dashboard: charts of everything that was blocked.
+- Audit log: click any row to see WHY something was blocked.
+- Benchmark: press "Run benchmark" to test 133 tricky messages at once.
+
+
+IF SOMETHING GOES WRONG
+-----------------------
+- The browser didn't open:
+    open your browser yourself and go to   http://localhost:8080
+
+- "Another program is already using port 8080":
+    open the "backend" folder, open the file ".env" with Notepad (Windows) or
+    TextEdit (Mac), change  PORT=8080  to  PORT=8090,  save, start again,
+    and use http://localhost:8090 instead.
+    (On Mac, files starting with a dot are hidden: press Cmd+Shift+. to show them.)
+
+- "Could not install Node.js automatically":
+    go to https://nodejs.org, download the LTS installer, install it, and
+    double-click the Start file again.
+
+- The page says "Cannot reach the server":
+    the black/Terminal window was closed. Start it again.
+
+
+OPTIONAL: USE A REAL AI (free)
+------------------------------
+Out of the box, PromptShield uses a pretend AI so it works offline (the page
+says "Simulated model"). To use Google's Gemini instead:
+1. Get a free key at https://aistudio.google.com/apikey
+2. Open backend/.env in Notepad/TextEdit (it appears after the first start).
+3. Change the line  GEMINI_API_KEY=  to  GEMINI_API_KEY=your-key-here  and save.
+4. Close the PromptShield window and start it again.
+
+
+FOR DEVELOPERS
+--------------
+See GETTING_STARTED.md and README.md.

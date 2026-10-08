@@ -37,7 +37,7 @@ r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
 /* ---- OpenAI-compatible drop-in proxy: change one base URL ---- */
 const oaiSchema = z.object({
   model: z.string().optional(),
-  messages: z.array(z.object({ role: z.string(), content: z.union([z.string(), z.array(z.any()), z.null()]).optional() })).min(1),
+  messages: z.array(z.object({ role: z.string(), content: z.union([z.string(), z.array(z.any()), z.null()]).optional() }).passthrough()).min(1),
 }).passthrough();
 r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, res) => {
   if (req.body.stream) {
@@ -54,6 +54,7 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
 
   for (const m of clonedBody.messages) {
     if (m.role === 'system' || m.role === 'developer') continue;
+    
     let contentStr = '';
     if (typeof m.content === 'string') {
       contentStr = m.content;
@@ -71,10 +72,33 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
       });
     }
     if (contentStr && m.role !== 'assistant') scanTexts.push(contentStr);
+
+    if (m.name && typeof m.name === 'string') {
+      let nameStr = m.name;
+      if (policy.piiMasking) m.name = redactor.process(nameStr, detectPII(nameStr)).sanitized;
+      if (nameStr && m.role !== 'assistant') scanTexts.push(nameStr);
+    }
+    
+    if (m.function_call && typeof m.function_call.arguments === 'string') {
+      let args = m.function_call.arguments;
+      if (policy.piiMasking) args = redactor.process(args, detectPII(args)).sanitized;
+      if (args && m.role !== 'assistant') scanTexts.push(args);
+      m.function_call.arguments = args;
+    }
+    
+    if (m.tool_calls && Array.isArray(m.tool_calls)) {
+      m.tool_calls.forEach(tc => {
+        if (tc.function && typeof tc.function.arguments === 'string') {
+          let args = tc.function.arguments;
+          if (policy.piiMasking) args = redactor.process(args, detectPII(args)).sanitized;
+          if (args && m.role !== 'assistant') scanTexts.push(args);
+          tc.function.arguments = args;
+        }
+      });
+    }
   }
 
   const scanText = scanTexts.join('\n\n');
-  if (!scanText.trim()) return res.status(400).json({ error: { message: 'No content to scan', type: 'invalid_request_error' } });
   if (scanText.length > 16000) return res.status(413).json({ error: { message: 'Request too large: scanned text exceeds 16000 characters', type: 'invalid_request_error' } });
   
   const out = await runPipeline({ prompt: scanText, context, policy, guardrails: true, runDownstream: false });

@@ -128,6 +128,36 @@ const expressServer = testApp.listen(0, async () => {
   // 5. upstream key never present in response
   ok('upstream key never present in response', !JSON.stringify(res.data).includes('fake-key'));
   ok('auth was passed to upstream', lastUpstreamAuth === 'Bearer fake-key');
+
+  // Task 1: proxy preserves tool_calls, tool_call_id, and name
+  upstreamReply = { choices: [{ message: { role: 'assistant', content: 'tool reply' } }] };
+  res = await proxyRequest({
+    messages: [
+      { role: 'assistant', tool_calls: [{ id: 'call_123', type: 'function', function: { name: 'get_weather', arguments: '{"location":"London"}' } }] },
+      { role: 'tool', tool_call_id: 'call_123', name: 'get_weather', content: 'Sunny' }
+    ]
+  });
+  ok('upstream receives tool_calls intact', lastUpstreamBody.messages[0].tool_calls[0].id === 'call_123');
+  ok('upstream receives tool_call_id intact', lastUpstreamBody.messages[1].tool_call_id === 'call_123');
+  ok('upstream receives name intact', lastUpstreamBody.messages[1].name === 'get_weather');
+
+  // Task 1: email in tool_calls is tokenized
+  res = await proxyRequest({
+    messages: [
+      { role: 'assistant', tool_calls: [{ id: 'call_456', type: 'function', function: { name: 'send_email', arguments: '{"to":"test@example.com"}' } }] }
+    ]
+  });
+  const argsArg = lastUpstreamBody.messages[0].tool_calls[0].function.arguments;
+  ok('email inside tool_calls reaches upstream only as a token', argsArg.includes('[EMAIL_1]') && !argsArg.includes('test@example.com'), argsArg);
+
+  // Task 1: email in name is tokenized
+  res = await proxyRequest({
+    messages: [
+      { role: 'user', name: 'user_bob@example.com', content: 'hi' }
+    ]
+  });
+  const nameArg = lastUpstreamBody.messages[0].name;
+  ok('name field containing email reaches upstream only as a token', nameArg.includes('[EMAIL_1]') && !nameArg.includes('bob@example.com'), nameArg);
   
   server.close();
   expressServer.close();

@@ -12,9 +12,9 @@
   --color-mute: #71717a;
   --color-faint: #52525b;
 
-  --color-brand: #84a5f0;
-  --color-brand-dark: #a5bdf5;
-  --color-brand-soft: rgba(37, 87, 214, 0.2);
+  --color-brand: #00f0ff;
+  --color-brand-dark: #00c0cc;
+  --color-brand-soft: rgba(0, 240, 255, 0.15);
 
   --color-ok: #34d399;
   --color-ok-soft: rgba(52, 211, 153, 0.1);
@@ -41,9 +41,9 @@ body::before {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background-image: 
-    radial-gradient(circle at 25% 40%, rgba(132, 56, 255, 0.15), transparent 45%),
-    radial-gradient(circle at 75% 60%, rgba(0, 240, 255, 0.12), transparent 45%),
-    radial-gradient(circle at 50% 10%, rgba(255, 56, 120, 0.08), transparent 50%),
+    radial-gradient(circle at 25% 40%, rgba(153, 27, 27, 0.25), transparent 45%), /* Dark Red */
+    radial-gradient(circle at 75% 60%, rgba(0, 240, 255, 0.15), transparent 45%), /* Electric Blue */
+    radial-gradient(circle at 50% 10%, rgba(250, 204, 21, 0.1), transparent 50%), /* Yellow */
     linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;

@@ -26,9 +26,21 @@ export const Icon = ({ name, size = 16, className = '', strokeWidth = 1.8 }) => 
 export function Logo({ size = 28 }) {
   return (
     <motion.svg whileHover={{ rotate: -10, scale: 1.05 }} width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#2557d6" />
-      <path d="M16 7l7 2.7v5.6c0 4.6-3 7.9-7 9.3-4-1.4-7-4.7-7-9.3V9.7z" fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M12.8 16l2.2 2.2 4.2-4.4" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect width="32" height="32" rx="8" fill="var(--color-brand)" className="opacity-20" />
+      <motion.path 
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 2, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+        d="M16 7l7 2.7v5.6c0 4.6-3 7.9-7 9.3-4-1.4-7-4.7-7-9.3V9.7z" 
+        fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinejoin="round" 
+      />
+      <motion.path 
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 1.5, ease: "easeInOut", delay: 0.5, repeat: Infinity, repeatType: "reverse" }}
+        d="M12.8 16l2.2 2.2 4.2-4.4" 
+        fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
+      />
     </motion.svg>
   );
 }
@@ -138,7 +150,13 @@ export function Toggle({ checked, onChange, label, hint }) {
 }
 
 export const Loading = ({ label = 'Loading…' }) => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5 py-10 text-sm text-mute"><span className="spinner text-brand" />{label}</motion.div>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center gap-4 py-24 text-sm text-brand">
+    <div className="relative flex h-12 w-12 items-center justify-center">
+      <motion.span animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }} className="absolute inset-0 rounded-full border border-brand bg-brand/20 blur-sm" />
+      <Logo size={36} />
+    </div>
+    <span className="font-mono text-mute">{label}</span>
+  </motion.div>
 );
 
 export const Notice = ({ tone = 'info', children }) => {

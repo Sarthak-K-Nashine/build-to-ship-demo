@@ -75,8 +75,8 @@ export default function Cursor() {
           width: '8px',
           height: '8px',
           borderRadius: '50%',
-          backgroundColor: '#00f0ff',
-          boxShadow: '0 0 10px #00f0ff, 0 0 20px #00f0ff',
+          backgroundColor: '#fff',
+          mixBlendMode: 'difference',
           pointerEvents: 'none',
           zIndex: 10000,
           translateX: '-50%',
@@ -98,18 +98,13 @@ export default function Cursor() {
           width: '32px',
           height: '32px',
           borderRadius: '50%',
-          border: '1.5px solid rgba(0, 240, 255, 0.6)',
-          backgroundColor: isHovering ? 'rgba(0, 240, 255, 0.15)' : 'transparent',
-          backdropFilter: isHovering ? 'blur(2px)' : 'none',
+          backgroundColor: '#fff',
+          mixBlendMode: 'difference',
           pointerEvents: 'none',
           zIndex: 9999,
-          boxShadow: isHovering ? '0 0 15px rgba(0, 240, 255, 0.4), inset 0 0 10px rgba(0, 240, 255, 0.2)' : '0 0 8px rgba(0, 240, 255, 0.2)'
         }}
         animate={{
-          scale: isHovering ? 1.5 : 1,
-          borderWidth: isHovering ? '1px' : '1.5px',
-          borderRadius: isHovering ? '8px' : '50%',
-          rotate: isHovering ? 45 : 0
+          scale: isHovering ? 2.5 : 1,
         }}
         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       />

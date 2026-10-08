@@ -53,6 +53,7 @@ function Panel({ title, subtitle, data, off, delay = 0 }) {
 export default function Sandbox() {
   const [prompt, setPrompt] = useState(PRESETS[0][1]);
   const [context, setContext] = useState('');
+  const [targetModel, setTargetModel] = useState('gpt-4o');
   const [res, setRes] = useState(null);
   const [busy, setBusy] = useState(false);
   const [compare, setCompare] = useState(true);
@@ -63,7 +64,7 @@ export default function Sandbox() {
     setBusy(true); setSent(prompt);
     setRes(null);
     // 403 (blocked) is a normal result; anything without a decision (400, 429, ...) is an error to show.
-    const call = (guardrails) => api.post('/api/chat', { prompt, context, guardrails }).then((r) => {
+    const call = (guardrails) => api.post('/api/chat', { prompt, context, guardrails, targetModel }).then((r) => {
       if (r.data?.action) return r.data;
       const msg = r.status === 429 ? 'Too many requests. Wait a minute and try again.'
         : r.data?.details?.join(', ') || r.data?.error || `Request failed (HTTP ${r.status}).`;
@@ -86,21 +87,30 @@ export default function Sandbox() {
         <div className="mb-4 flex flex-wrap gap-2">
           {PRESETS.map(([n, p]) => (
             <button key={n} onClick={() => setPrompt(p)}
-              className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${prompt === p ? 'border-[#84a5f0] bg-brand-soft text-brand shadow-sm' : 'border-line bg-white text-body hover:bg-gray-50'}`}>
+              className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${prompt === p ? 'border-brand bg-brand/10 text-brand shadow-[0_0_10px_rgba(37,87,214,0.3)]' : 'border-line bg-white/5 text-body hover:bg-white/10'}`}>
               {n}
             </button>
           ))}
         </div>
-        <div className="space-y-3">
+        <div className="grid lg:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-mute">Downstream App Context (Optional Domain Restriction)</label>
-            <input type="text" value={context} onChange={(e) => setContext(e.target.value)} placeholder="e.g. You are a customer support bot for a shoe store." className="input font-mono text-[13px]" />
+            <label className="mb-1 block text-xs font-medium text-mute">Downstream App Context (Domain Restriction)</label>
+            <input type="text" value={context} onChange={(e) => setContext(e.target.value)} placeholder="e.g. Customer support bot for Acme." className="input font-mono text-[13px]" />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-mute">User Prompt</label>
-            <textarea id="prompt-input" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) run(); }}
-              rows={4} maxLength={8000} aria-label="Prompt" placeholder="Enter a prompt…" className="input resize-y font-mono text-[13px] leading-6 shadow-inner focus:shadow-[0_0_0_4px_rgba(37,87,214,0.1)] transition-shadow" />
+            <label className="mb-1 block text-xs font-medium text-mute">Target LLM (Downstream Model)</label>
+            <select className="input font-mono text-[13px] !py-[0.45rem]" value={targetModel} onChange={(e) => setTargetModel(e.target.value)}>
+              <option value="gpt-4o" className="bg-black text-white">OpenAI GPT-4o (Simulated)</option>
+              <option value="claude-3-5-sonnet" className="bg-black text-white">Anthropic Claude 3.5 Sonnet (Simulated)</option>
+              <option value="gemini-1-5-pro" className="bg-black text-white">Google Gemini 1.5 Pro</option>
+              <option value="llama-3" className="bg-black text-white">Meta Llama 3 (Simulated)</option>
+            </select>
           </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-mute">User Prompt</label>
+          <textarea id="prompt-input" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) run(); }}
+            rows={4} maxLength={8000} aria-label="Prompt" placeholder="Enter a prompt…" className="input resize-y font-mono text-[13px] leading-6 shadow-inner focus:shadow-[0_0_0_4px_rgba(132,165,240,0.1)] transition-shadow" />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <label className="flex cursor-pointer items-center gap-2.5 text-sm text-body">
@@ -126,7 +136,7 @@ export default function Sandbox() {
             </div>
           </motion.div>
         ) : !res?.error && (
-          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="rounded-xl border border-dashed border-[#d0d5dd] bg-white px-6 py-12 text-center">
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="rounded-xl border border-dashed border-line bg-black/20 backdrop-blur-sm px-6 py-12 text-center">
             <p className="text-sm font-medium text-ink">No results yet</p>
             <p className="mt-1 text-sm text-mute">Run a scan to see the decision, the reason and each pipeline step.</p>
           </motion.div>

@@ -13,7 +13,7 @@ const limiter = rateLimit({ windowMs: 60_000, limit: 90, standardHeaders: true, 
 r.get(['/health', '/api/health'], (_q, s) => s.json({ ok: true, ai: config.geminiKey ? `gemini:${config.geminiModel}` : 'regex-only (no GEMINI_API_KEY)' }));
 
 /* ---- guarded chat ---- */
-const chatSchema = z.object({ prompt: z.string().min(1).max(8000), context: z.string().max(2000).optional(), guardrails: z.boolean().default(true) });
+const chatSchema = z.object({ prompt: z.string().min(1).max(8000), context: z.string().max(2000).optional(), guardrails: z.boolean().default(true), targetModel: z.string().optional() });
 const publicOut = (o, eventId) => ({
   eventId, action: o.action, category: o.category, risk: o.risk, source: o.source, reason: o.reason,
   rules: o.rules.map(({ id, label, explain, w }) => ({ id, label, explain, w })),
@@ -22,7 +22,7 @@ const publicOut = (o, eventId) => ({
 });
 
 r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
-  const out = await runPipeline({ prompt: req.body.prompt, context: req.body.context, policy: getPolicy(req.user.id), guardrails: req.body.guardrails });
+  const out = await runPipeline({ prompt: req.body.prompt, context: req.body.context, policy: getPolicy(req.user.id), guardrails: req.body.guardrails, targetModel: req.body.targetModel });
   const id = saveEvent(req.user.id, out);
   res.status(out.action === 'BLOCKED' ? 403 : 200).json(publicOut(out, id));
 });

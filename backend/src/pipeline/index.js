@@ -23,7 +23,7 @@ async function sendWebhook(result, prompt) {
   }
 }
 
-export async function runPipeline({ prompt, context, policy, guardrails = true, runDownstream = true }) {
+export async function runPipeline({ prompt, context, policy, guardrails = true, runDownstream = true, targetModel = 'simulated' }) {
   const T0 = performance.now();
   const stages = [];
   const add = (name, layer, t, status, detail) => stages.push({ name, layer, ms: ms(t), status, detail });
@@ -34,7 +34,7 @@ export async function runPipeline({ prompt, context, policy, guardrails = true, 
   /* ---- guardrails OFF: the "raw app" baseline ---- */
   if (!guardrails) {
     let t = performance.now();
-    const llm = await callLLM({ prompt });
+    const llm = await callLLM({ prompt, targetModel });
     add('Downstream LLM (no protection)', 'llm', t, 'warn', llm.mode);
     const leak = guardOutput(llm.text);
     return {
@@ -116,7 +116,7 @@ export async function runPipeline({ prompt, context, policy, guardrails = true, 
     const llmInput = policy.piiMasking ? tok.sanitized : prompt;
     result.llmInput = llmInput;
     t = performance.now();
-    const llm = await callLLM({ prompt: llmInput });
+    const llm = await callLLM({ prompt: llmInput, targetModel });
     result.llmMode = llm.mode;
     add('Downstream LLM', 'llm', t, llm.mode === 'error' ? 'error' : 'pass', llm.mode);
 

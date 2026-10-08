@@ -226,12 +226,13 @@ export const CAT_COLOR = { PROMPT_INJECTION: '#f04438', JAILBREAK: '#f79009', DA
 
 /* shared recharts styling */
 export const CHART = {
-  tick: { fontSize: 12, fill: '#667085' },
-  grid: '#eaecf0',
+  tick: { fontSize: 12, fill: '#71717a' },
+  grid: 'rgba(255, 255, 255, 0.05)',
   tooltip: {
-    contentStyle: { background: '#fff', border: '1px solid #e4e7ec', borderRadius: 8, fontSize: 12, boxShadow: '0 4px 12px rgba(16,24,40,0.08)' },
-    labelStyle: { color: '#101828', fontWeight: 600, marginBottom: 4 },
-    cursor: { fill: '#f2f4f7' },
+    contentStyle: { background: 'rgba(5, 5, 5, 0.8)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 12, fontSize: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', color: '#fff' },
+    itemStyle: { color: '#e4e4e7' },
+    labelStyle: { color: '#fff', fontWeight: 600, marginBottom: 4 },
+    cursor: { fill: 'rgba(255, 255, 255, 0.03)' },
   },
-  legend: { wrapperStyle: { fontSize: 12, color: '#475467', paddingTop: 8 }, iconType: 'circle', iconSize: 8 },
+  legend: { wrapperStyle: { fontSize: 12, color: '#a1a1aa', paddingTop: 16 }, iconType: 'circle', iconSize: 8 },
 };

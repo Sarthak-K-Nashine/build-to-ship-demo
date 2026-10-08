@@ -52,6 +52,7 @@ function Panel({ title, subtitle, data, off, delay = 0 }) {
 
 export default function Sandbox() {
   const [prompt, setPrompt] = useState(PRESETS[0][1]);
+  const [context, setContext] = useState('');
   const [res, setRes] = useState(null);
   const [busy, setBusy] = useState(false);
   const [compare, setCompare] = useState(true);
@@ -62,7 +63,7 @@ export default function Sandbox() {
     setBusy(true); setSent(prompt);
     setRes(null);
     // 403 (blocked) is a normal result; anything without a decision (400, 429, ...) is an error to show.
-    const call = (guardrails) => api.post('/api/chat', { prompt, guardrails }).then((r) => {
+    const call = (guardrails) => api.post('/api/chat', { prompt, context, guardrails }).then((r) => {
       if (r.data?.action) return r.data;
       const msg = r.status === 429 ? 'Too many requests. Wait a minute and try again.'
         : r.data?.details?.join(', ') || r.data?.error || `Request failed (HTTP ${r.status}).`;
@@ -90,8 +91,17 @@ export default function Sandbox() {
             </button>
           ))}
         </div>
-        <textarea id="prompt-input" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) run(); }}
-          rows={4} maxLength={8000} aria-label="Prompt" placeholder="Enter a prompt…" className="input resize-y font-mono text-[13px] leading-6 shadow-inner focus:shadow-[0_0_0_4px_rgba(37,87,214,0.1)] transition-shadow" />
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-mute">Downstream App Context (Optional Domain Restriction)</label>
+            <input type="text" value={context} onChange={(e) => setContext(e.target.value)} placeholder="e.g. You are a customer support bot for a shoe store." className="input font-mono text-[13px]" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-mute">User Prompt</label>
+            <textarea id="prompt-input" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) run(); }}
+              rows={4} maxLength={8000} aria-label="Prompt" placeholder="Enter a prompt…" className="input resize-y font-mono text-[13px] leading-6 shadow-inner focus:shadow-[0_0_0_4px_rgba(37,87,214,0.1)] transition-shadow" />
+          </div>
+        </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <label className="flex cursor-pointer items-center gap-2.5 text-sm text-body">
             <input type="checkbox" className="switch" checked={compare} onChange={(e) => setCompare(e.target.checked)} />

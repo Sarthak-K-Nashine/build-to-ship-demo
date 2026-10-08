@@ -13,7 +13,7 @@ const limiter = rateLimit({ windowMs: 60_000, limit: 90, standardHeaders: true, 
 r.get(['/health', '/api/health'], (_q, s) => s.json({ ok: true, ai: config.geminiKey ? `gemini:${config.geminiModel}` : 'regex-only (no GEMINI_API_KEY)' }));
 
 /* ---- guarded chat ---- */
-const chatSchema = z.object({ prompt: z.string().min(1).max(8000), guardrails: z.boolean().default(true) });
+const chatSchema = z.object({ prompt: z.string().min(1).max(8000), context: z.string().max(2000).optional(), guardrails: z.boolean().default(true) });
 const publicOut = (o, eventId) => ({
   eventId, action: o.action, category: o.category, risk: o.risk, source: o.source, reason: o.reason,
   rules: o.rules.map(({ id, label, explain, w }) => ({ id, label, explain, w })),
@@ -22,7 +22,7 @@ const publicOut = (o, eventId) => ({
 });
 
 r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
-  const out = await runPipeline({ prompt: req.body.prompt, policy: getPolicy(req.user.id), guardrails: req.body.guardrails });
+  const out = await runPipeline({ prompt: req.body.prompt, context: req.body.context, policy: getPolicy(req.user.id), guardrails: req.body.guardrails });
   const id = saveEvent(req.user.id, out);
   res.status(out.action === 'BLOCKED' ? 403 : 200).json(publicOut(out, id));
 });
@@ -35,8 +35,10 @@ const oaiSchema = z.object({
 r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, res) => {
   const text = (c) => (typeof c === 'string' ? c : c.map((p) => p.text || '').join(' '));
   const lastUser = [...req.body.messages].reverse().find((m) => m.role === 'user');
+  const systemMsg = req.body.messages.find((m) => m.role === 'system' || m.role === 'developer');
+  const context = systemMsg ? text(systemMsg.content) : undefined;
   if (!lastUser) return res.status(400).json({ error: { message: 'No user message', type: 'invalid_request_error' } });
-  const out = await runPipeline({ prompt: text(lastUser.content), policy: getPolicy(req.user.id), guardrails: true });
+  const out = await runPipeline({ prompt: text(lastUser.content), context, policy: getPolicy(req.user.id), guardrails: true });
   const id = saveEvent(req.user.id, out);
   res.set('x-promptshield-event', String(id));
   if (out.action === 'BLOCKED') {

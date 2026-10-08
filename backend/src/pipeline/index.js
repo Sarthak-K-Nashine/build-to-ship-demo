@@ -7,7 +7,23 @@ import { config } from '../config.js';
 export const THRESH = { low: 80, medium: 60, high: 40 };
 const ms = (t) => +(performance.now() - t).toFixed(1);
 
-export async function runPipeline({ prompt, policy, guardrails = true, runDownstream = true }) {
+async function sendWebhook(result, prompt) {
+  if (!process.env.WEBHOOK_URL || result.risk < 80) return;
+  try {
+    const payload = {
+      content: `🚨 **High-Risk Threat Blocked by PromptShield** 🚨\n**Category:** ${result.category}\n**Risk Score:** ${result.risk}/100\n**Reason:** ${result.reason}\n\n**Attempted Prompt:**\n\`\`\`text\n${prompt.slice(0, 1000)}\n\`\`\``
+    };
+    await fetch(process.env.WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {
+    console.error('Webhook failed:', e.message);
+  }
+}
+
+export async function runPipeline({ prompt, context, policy, guardrails = true, runDownstream = true }) {
   const T0 = performance.now();
   const stages = [];
   const add = (name, layer, t, status, detail) => stages.push({ name, layer, ms: ms(t), status, detail });
@@ -46,11 +62,11 @@ export async function runPipeline({ prompt, policy, guardrails = true, runDownst
   /* ---- layer 2: tiered Gemini inspection ---- */
   const sticky = rules.some((r) => r.sticky) || regexRisk >= 70;
   const aiAvailable = !!config.geminiKey && policy.aiMode !== 'off';
-  const needAI = aiAvailable && !sticky && (policy.aiMode === 'always' || regexRisk > 0 || looksSuspicious(prompt));
+  const needAI = aiAvailable && !sticky && (policy.aiMode === 'always' || regexRisk > 0 || looksSuspicious(prompt) || context);
   let ai = null;
   if (needAI) {
     t = performance.now();
-    ai = await inspect(tok.sanitized);
+    ai = await inspect(tok.sanitized, context);
     add('Gemini inspector', 'ai', t, ai.ok ? (ai.risk >= threshold ? 'flag' : 'pass') : 'error', ai.ok ? `${ai.category} (${ai.risk})${ai.cached ? ' [cached]' : ''}` : ai.error);
   } else {
     add('Gemini inspector', 'ai', performance.now(), 'skipped',
@@ -123,5 +139,9 @@ export async function runPipeline({ prompt, policy, guardrails = true, runDownst
   const sum = (layer) => +stages.filter((s) => s.layer === layer).reduce((a, s) => a + s.ms, 0).toFixed(1);
   result.latency = { regex: sum('regex'), ai: sum('ai'), llm: sum('llm'), guard: +(sum('regex') + sum('ai')).toFixed(1), total: ms(T0) };
   result.totalMs = result.latency.total;
+  
+  // Send async webhook alert if high risk
+  sendWebhook(result, prompt);
+  
   return result;
 }

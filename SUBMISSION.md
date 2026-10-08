@@ -85,12 +85,16 @@ PromptShield inspects every incoming prompt **before** it touches the model, san
 
 - **Tiered Hybrid Defense:** Obvious threats are dropped instantly (single-digit to low double-digit milliseconds on the regex path; Gemini adds network latency) without unnecessary API costs. Complex semantic attacks are classified by an isolated Google Gemini inspector.
 - **Reversible PII Redaction:** Credit cards, emails, phone numbers, and keys are converted into deterministic tokens. The user sees their data restored in the output, but the LLM only ever processes sanitized tokens.
-- **Canary Token Leak Detection:** Hidden cryptographic markers inside system prompts instantly withhold replies if the model is coerced into leaking its instructions.
+- **Canary Token Leak Detection:** Hidden random canary tokens inside system prompts instantly withhold replies if the model is coerced into leaking its instructions.
 - **Zero Raw Data Stored:** Audit logs persist only tokenized representations and risk metrics, ensuring compliance with strict data protection regulations.
 - **OpenAI-Compatible Drop-In Proxy (`/v1/chat/completions`):** Any existing enterprise application using the OpenAI SDK can be secured by changing just a single line of code (`baseURL`). Now forwards upstream dynamically.
 - **Interactive Security Dashboard & Red-Team Benchmark:** Live KPI monitoring, daily threat categorizations, PII breakdown charts, and an automated red-team test suite scoring 130+ adversarial vectors.
 - **Enterprise Ready Integrations:** Supports Model Selection, Downstream Domain Restriction Contexts, Discord Webhook Alerts, SIEM Export Buttons (JSON/CSV), and Tamper-Evident Hash-Chained Audit Logs.*
   *\* Note: The hash chain detects edits and truncation by someone who can only modify rows, not an attacker who rewrites the whole database and the head.*
+
+### Known limitations
+
+Non-text message parts (images, audio) are not scanned or redacted. PII detection is pattern-based and does not find names or addresses. The hash chain detects edits and truncation by someone who can only modify rows, not an attacker who rewrites the database and the head. The per-user and global quotas limit real-model spend but are not a substitute for provider-side spend limits.
 
 ---
 

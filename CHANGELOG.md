@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+- Fixed an issue where the daily quota could be bypassed with guardrails turned off. Guardrails-off events are now properly tracked as real-model calls.
+- Added a global daily cap (`GLOBAL_DAILY_REAL_MODEL_LIMIT`) to prevent excessive real-model usage across all users.
+- Fixed Mac launcher file permissions to ensure it is executable out of the box.
+
 ## 1.2.0
 
 - Added `.dockerignore` and `HEALTHCHECK` to Dockerfile, allowing Docker builds to succeed out of the box.

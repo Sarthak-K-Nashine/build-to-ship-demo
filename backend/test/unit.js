@@ -13,6 +13,7 @@ const { detectPII, tokenize, detokenize, scanThreats } = await import('../src/pi
 const { guardOutput } = await import('../src/pipeline/outputGuard.js');
 const { runBenchmark } = await import('../src/benchmark.js');
 const { DEFAULT_POLICY, db, saveEvent, verifyChain } = await import('../src/db.js');
+const crypto = await import('node:crypto');
 const { auth } = await import('../src/auth.js');
 const { config } = await import('../src/config.js');
 const jwt = (await import('jsonwebtoken')).default;
@@ -88,6 +89,21 @@ db.prepare('DELETE FROM events WHERE id=?').run(e4);
 
 db.prepare('DELETE FROM events WHERE id=?').run(e6);
 ok('tamper detection: delete newest event', !verifyChain(id).ok);
+
+db.prepare('DELETE FROM events WHERE user_id=?').run(id);
+db.prepare('DELETE FROM chain_heads WHERE user_id=?').run(id);
+const e7 = saveEvent(id, mockOut);
+db.prepare('UPDATE events SET real_model=1 WHERE id=?').run(e7);
+ok('tamper detection: change real_model (hv=2)', !verifyChain(id).ok);
+db.prepare('DELETE FROM events WHERE user_id=?').run(id);
+db.prepare('DELETE FROM chain_heads WHERE user_id=?').run(id);
+
+// Test legacy row (hv=1) which does not hash real_model
+const dataToHash = JSON.stringify({ user_id: id, created_at: new Date().toISOString(), guardrails: 1, action: 'UNGUARDED', category: 'NONE', risk: 0, source: null, reason: null, rules: '[]', pii: '[]', sanitized: 'mock', latency: '{}', seeded: 0, prev_hash: '0000000000000000000000000000000000000000000000000000000000000000' });
+const legacyHash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+db.prepare(`INSERT INTO events(user_id,guardrails,action,category,risk,rules,pii,sanitized,latency,prev_hash,hash,real_model,hv,created_at) VALUES(?,1,'UNGUARDED','NONE',0,'[]','[]','mock','{}','0000000000000000000000000000000000000000000000000000000000000000',?,1,1,?)`).run(id, legacyHash, JSON.parse(dataToHash).created_at);
+db.prepare('INSERT INTO chain_heads(user_id,head_hash,count) VALUES(?,?,1)').run(id, legacyHash);
+ok('tamper detection: legacy row (hv=1) verifies correctly', verifyChain(id).ok);
 
 // To test middle event deletion, we need to create a new unbroken chain
 db.prepare('DELETE FROM events WHERE user_id=?').run(id);

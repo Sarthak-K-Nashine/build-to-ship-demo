@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS events(
   seeded INTEGER NOT NULL DEFAULT 0,
   prev_hash TEXT,
   hash TEXT,
-  real_model INTEGER NOT NULL DEFAULT 0
+  real_model INTEGER NOT NULL DEFAULT 0,
+  hv INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, id DESC);
 CREATE TABLE IF NOT EXISTS chain_heads(user_id INTEGER PRIMARY KEY, head_hash TEXT, count INTEGER);
@@ -57,6 +58,10 @@ try {
 
 try {
   db.exec('ALTER TABLE events ADD COLUMN real_model INTEGER NOT NULL DEFAULT 0;');
+} catch (e) {}
+
+try {
+  db.exec('ALTER TABLE events ADD COLUMN hv INTEGER NOT NULL DEFAULT 1;');
 } catch (e) {}
 
 export const DEFAULT_POLICY = {
@@ -103,13 +108,14 @@ export function saveEvent(userId, out, extra = {}) {
     const seeded = extra.seeded ? 1 : 0;
     const realModel = out.realModel ? 1 : 0;
 
-    const dataToHash = JSON.stringify({ user_id: userId, created_at: createdAt, guardrails, action, category, risk, source, reason, rules: rulesJson, pii: piiJson, sanitized, latency: latencyJson, seeded, prev_hash: prevHash });
+    const hv = 2;
+    const dataToHash = JSON.stringify({ user_id: userId, created_at: createdAt, guardrails, action, category, risk, source, reason, rules: rulesJson, pii: piiJson, sanitized, latency: latencyJson, seeded, real_model: realModel, prev_hash: prevHash });
     const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
 
     const info = db.prepare(
-      `INSERT INTO events(user_id,guardrails,action,category,risk,source,reason,rules,pii,sanitized,latency,seeded,prev_hash,hash,real_model,created_at)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(userId, guardrails, action, category, risk, source, reason, rulesJson, piiJson, sanitized, latencyJson, seeded, prevHash, hash, realModel, createdAt);
+      `INSERT INTO events(user_id,guardrails,action,category,risk,source,reason,rules,pii,sanitized,latency,seeded,prev_hash,hash,real_model,hv,created_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(userId, guardrails, action, category, risk, source, reason, rulesJson, piiJson, sanitized, latencyJson, seeded, prevHash, hash, realModel, hv, createdAt);
 
     db.prepare('INSERT INTO chain_heads(user_id,head_hash,count) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET head_hash=excluded.head_hash, count=excluded.count').run(userId, hash, count);
     db.exec('COMMIT');
@@ -132,7 +138,12 @@ export function verifyChain(userId) {
   
   for (const r of rows) {
     if (!r.hash) { unchained++; continue; }
-    const dataToHash = JSON.stringify({ user_id: r.user_id, created_at: r.created_at, guardrails: r.guardrails, action: r.action, category: r.category, risk: r.risk, source: r.source, reason: r.reason, rules: r.rules, pii: r.pii, sanitized: r.sanitized, latency: r.latency, seeded: r.seeded, prev_hash: r.prev_hash });
+    let dataToHash;
+    if (r.hv >= 2) {
+      dataToHash = JSON.stringify({ user_id: r.user_id, created_at: r.created_at, guardrails: r.guardrails, action: r.action, category: r.category, risk: r.risk, source: r.source, reason: r.reason, rules: r.rules, pii: r.pii, sanitized: r.sanitized, latency: r.latency, seeded: r.seeded, real_model: r.real_model, prev_hash: r.prev_hash });
+    } else {
+      dataToHash = JSON.stringify({ user_id: r.user_id, created_at: r.created_at, guardrails: r.guardrails, action: r.action, category: r.category, risk: r.risk, source: r.source, reason: r.reason, rules: r.rules, pii: r.pii, sanitized: r.sanitized, latency: r.latency, seeded: r.seeded, prev_hash: r.prev_hash });
+    }
     const computed = crypto.createHash('sha256').update(dataToHash).digest('hex');
     
     if (r.prev_hash !== expectedPrev || r.hash !== computed) {

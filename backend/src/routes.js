@@ -37,8 +37,18 @@ const checkQuota = (userId) => {
 r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
   const quotaExceeded = checkQuota(req.user.id);
 
+  let safeContext = req.body.context;
+  const policy = getPolicy(req.user.id);
+  if (safeContext) {
+    safeContext = safeContext.slice(0, 1000);
+    if (policy.piiMasking) {
+      const redactor = createRedactor();
+      safeContext = redactor.process(safeContext, detectPII(safeContext)).sanitized;
+    }
+  }
+
   const targetModel = quotaExceeded ? 'Daily real-model limit reached, using simulated model' : req.body.targetModel;
-  const out = await runPipeline({ prompt: req.body.prompt, context: req.body.context, policy: getPolicy(req.user.id), guardrails: req.body.guardrails, targetModel });
+  const out = await runPipeline({ prompt: req.body.prompt, context: safeContext, policy, guardrails: req.body.guardrails, targetModel });
   const id = saveEvent(req.user.id, out);
   res.status(out.action === 'BLOCKED' ? 403 : 200).json(publicOut(out, id));
 });

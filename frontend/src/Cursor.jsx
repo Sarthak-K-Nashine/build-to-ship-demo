@@ -72,10 +72,11 @@ export default function Cursor() {
           top: 0,
           x: smoothX,
           y: smoothY,
-          width: '6px',
-          height: '6px',
+          width: '8px',
+          height: '8px',
           borderRadius: '50%',
-          backgroundColor: '#2557d6',
+          backgroundColor: '#00f0ff',
+          boxShadow: '0 0 10px #00f0ff, 0 0 20px #00f0ff',
           pointerEvents: 'none',
           zIndex: 10000,
           translateX: '-50%',
@@ -97,18 +98,20 @@ export default function Cursor() {
           width: '32px',
           height: '32px',
           borderRadius: '50%',
-          border: '1.5px solid rgba(37, 87, 214, 0.4)',
-          backgroundColor: isHovering ? 'rgba(37, 87, 214, 0.15)' : 'transparent',
+          border: '1.5px solid rgba(0, 240, 255, 0.6)',
+          backgroundColor: isHovering ? 'rgba(0, 240, 255, 0.15)' : 'transparent',
           backdropFilter: isHovering ? 'blur(2px)' : 'none',
           pointerEvents: 'none',
           zIndex: 9999,
-          boxShadow: isHovering ? '0 0 15px rgba(37, 87, 214, 0.3)' : 'none'
+          boxShadow: isHovering ? '0 0 15px rgba(0, 240, 255, 0.4), inset 0 0 10px rgba(0, 240, 255, 0.2)' : '0 0 8px rgba(0, 240, 255, 0.2)'
         }}
         animate={{
           scale: isHovering ? 1.5 : 1,
-          borderWidth: isHovering ? '0px' : '1.5px',
+          borderWidth: isHovering ? '1px' : '1.5px',
+          borderRadius: isHovering ? '8px' : '50%',
+          rotate: isHovering ? 45 : 0
         }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       />
     </>
   );

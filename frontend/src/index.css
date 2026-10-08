@@ -28,7 +28,11 @@
 }
 
 body {
-  background: var(--color-canvas);
+  background-color: var(--color-canvas);
+  background-image: 
+    linear-gradient(to right, rgba(37, 87, 214, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 87, 214, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01";

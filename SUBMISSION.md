@@ -89,7 +89,8 @@ PromptShield inspects every incoming prompt **before** it touches the model, san
 - **Zero Raw Data Stored:** Audit logs persist only tokenized representations and risk metrics, ensuring compliance with strict data protection regulations.
 - **OpenAI-Compatible Drop-In Proxy (`/v1/chat/completions`):** Any existing enterprise application using the OpenAI SDK can be secured by changing just a single line of code (`baseURL`). Now forwards upstream dynamically.
 - **Interactive Security Dashboard & Red-Team Benchmark:** Live KPI monitoring, daily threat categorizations, PII breakdown charts, and an automated red-team test suite scoring 130+ adversarial vectors.
-- **Enterprise Ready Integrations:** Supports Model Selection, Downstream Domain Restriction Contexts, Discord Webhook Alerts, SIEM Export Buttons (JSON/CSV), and Tamper-Evident Hash-Chained Audit Logs.
+- **Enterprise Ready Integrations:** Supports Model Selection, Downstream Domain Restriction Contexts, Discord Webhook Alerts, SIEM Export Buttons (JSON/CSV), and Tamper-Evident Hash-Chained Audit Logs.*
+  *\* Note: The hash chain detects edits and truncation by someone who can only modify rows, not an attacker who rewrites the whole database and the head.*
 
 ---
 

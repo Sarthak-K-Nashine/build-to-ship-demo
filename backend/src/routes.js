@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { auth, validate } from './auth.js';
-import { db, getPolicy, setPolicy, saveEvent, parseEvent, DEFAULT_POLICY } from './db.js';
+import { db, getPolicy, setPolicy, saveEvent, parseEvent, verifyChain, DEFAULT_POLICY } from './db.js';
 import { runPipeline } from './pipeline/index.js';
 import { runBenchmark } from './benchmark.js';
 import { config } from './config.js';
@@ -150,6 +150,11 @@ r.get('/api/events/export', auth, (req, res) => {
     return res.send([cols.join(','), ...rows.map((e) => cols.map((c) => esc(e[c])).join(','))].join('\n'));
   }
   res.set('content-disposition', 'attachment; filename="promptshield-audit.json"').json(rows);
+});
+
+r.get('/api/events/verify', auth, (req, res) => {
+  const result = verifyChain(req.user.id);
+  res.json(result);
 });
 
 r.get('/api/events/:id', auth, (req, res) => {

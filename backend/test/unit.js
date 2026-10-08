@@ -12,7 +12,7 @@ process.env.JWT_SECRET = 'unit-test-secret';
 const { detectPII, tokenize, detokenize, scanThreats } = await import('../src/pipeline/detectors.js');
 const { guardOutput } = await import('../src/pipeline/outputGuard.js');
 const { runBenchmark } = await import('../src/benchmark.js');
-const { DEFAULT_POLICY, db } = await import('../src/db.js');
+const { DEFAULT_POLICY, db, saveEvent, verifyChain } = await import('../src/db.js');
 const { auth } = await import('../src/auth.js');
 const { config } = await import('../src/config.js');
 const jwt = (await import('jsonwebtoken')).default;
@@ -58,6 +58,45 @@ ok('valid token accepted', (await run(jwt.sign({ sub: id, email: 'bob@x.dev' }, 
 ok('token for reused id but other email rejected', (await run(jwt.sign({ sub: id, email: 'alice@x.dev' }, config.jwtSecret))) === 401);
 ok('token for deleted user rejected', (await run(jwt.sign({ sub: 9999, email: 'ghost@x.dev' }, config.jwtSecret))) === 401);
 ok('token signed with another secret rejected', (await run(jwt.sign({ sub: id, email: 'bob@x.dev' }, 'other'))) === 401);
+
+/* ---- hash chain tamper detection ---- */
+const mockOut = { action: 'ALLOWED', category: 'SAFE', risk: 0, reason: 'test', rules: [], spans: [], storedPrompt: 'hello', latency: {} };
+const e1 = saveEvent(id, mockOut);
+const e2 = saveEvent(id, mockOut);
+const e3 = saveEvent(id, mockOut);
+const e4 = saveEvent(id, mockOut);
+const e5 = saveEvent(id, mockOut);
+const e6 = saveEvent(id, mockOut);
+
+ok('hash chain verifies on clean db', verifyChain(id).ok);
+
+db.prepare("UPDATE events SET created_at='2000-01-01T00:00:00Z' WHERE id=?").run(e1);
+ok('tamper detection: change created_at', !verifyChain(id).ok);
+db.prepare('DELETE FROM events WHERE id=?').run(e1); // Remove tampered event so chain breaks at 2 instead
+
+db.prepare("UPDATE events SET reason='tampered' WHERE id=?").run(e2);
+ok('tamper detection: change reason', !verifyChain(id).ok);
+db.prepare('DELETE FROM events WHERE id=?').run(e2);
+
+db.prepare("UPDATE events SET rules='[{}]' WHERE id=?").run(e3);
+ok('tamper detection: change rules', !verifyChain(id).ok);
+db.prepare('DELETE FROM events WHERE id=?').run(e3);
+
+db.prepare('UPDATE events SET risk=99 WHERE id=?').run(e4);
+ok('tamper detection: change risk', !verifyChain(id).ok);
+db.prepare('DELETE FROM events WHERE id=?').run(e4);
+
+db.prepare('DELETE FROM events WHERE id=?').run(e6);
+ok('tamper detection: delete newest event', !verifyChain(id).ok);
+
+// To test middle event deletion, we need to create a new unbroken chain
+db.prepare('DELETE FROM events WHERE user_id=?').run(id);
+db.prepare('DELETE FROM chain_heads WHERE user_id=?').run(id);
+const m1 = saveEvent(id, mockOut);
+const m2 = saveEvent(id, mockOut);
+const m3 = saveEvent(id, mockOut);
+db.prepare('DELETE FROM events WHERE id=?').run(m2);
+ok('tamper detection: delete middle event', !verifyChain(id).ok);
 
 db.close();
 fs.rmSync(tmp, { recursive: true, force: true });

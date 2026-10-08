@@ -17,7 +17,17 @@ export default function Logs() {
   const [data, setData] = useState({ total: 0, events: [] });
   const [open, setOpen] = useState(null);
   const [page, setPage] = useState(0);
+  const [verifyResult, setVerifyResult] = useState(null);
   const per = 15;
+
+  const handleVerify = async () => {
+    try {
+      const { data } = await api.get('/api/events/verify');
+      setVerifyResult(data);
+    } catch (e) {
+      alert('Verification failed');
+    }
+  };
 
   const load = useCallback(() => {
     api.get('/api/events', { params: { limit: per, offset: page * per, action: filter === 'ALL' ? undefined : filter } }).then((r) => setData(r.data));
@@ -37,9 +47,27 @@ export default function Logs() {
     <div className="space-y-6">
       <PageHeader title="Audit log" description="Every decision with its reason. Raw prompts are never stored, only the version with personal data replaced by tokens."
         actions={<>
+          <Btn kind="secondary" icon="shield" onClick={handleVerify}>Verify integrity</Btn>
           <Btn kind="secondary" icon="download" onClick={() => download('/api/events/export?format=csv', 'promptshield-audit.csv')}>Export CSV</Btn>
           <Btn kind="secondary" icon="download" onClick={() => download('/api/events/export?format=json', 'promptshield-audit.json')}>Export JSON</Btn>
         </>} />
+
+      {verifyResult && (
+        <div className={`rounded-xl border px-5 py-4 ${verifyResult.ok ? 'bg-green-500/10 border-green-500/20 text-green-600' : 'bg-red-500/10 border-red-500/20 text-red-600'}`}>
+          <div className="flex items-center gap-3">
+            <Icon name={verifyResult.ok ? 'check-circle' : 'alert-triangle'} size={20} />
+            <div>
+              <h3 className="font-semibold text-sm">{verifyResult.ok ? 'Audit log is intact' : 'Tampering detected!'}</h3>
+              <p className="text-[13px] opacity-90">
+                {verifyResult.ok 
+                  ? `Cryptographic chain verified. ${verifyResult.checked} events checked.` 
+                  : `Chain broken at event ${verifyResult.brokenAtId}. ${verifyResult.checked} events were intact before the break.`}
+                {verifyResult.unchained > 0 && ` (${verifyResult.unchained} legacy events ignored)`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="overflow-hidden rounded-xl border border-line bg-black/40 backdrop-blur-2xl shadow-[0_4px_24px_rgba(0,0,0,0.3)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 px-5 py-3 bg-white/5">

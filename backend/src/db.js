@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS events(
   hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, id DESC);
+CREATE TABLE IF NOT EXISTS chain_heads(user_id INTEGER PRIMARY KEY, head_hash TEXT, count INTEGER);
 CREATE TABLE IF NOT EXISTS benchmarks(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS benchmarks(
 try {
   db.exec('ALTER TABLE events ADD COLUMN prev_hash TEXT;');
   db.exec('ALTER TABLE events ADD COLUMN hash TEXT;');
+  db.exec('CREATE TABLE IF NOT EXISTS chain_heads(user_id INTEGER PRIMARY KEY, head_hash TEXT, count INTEGER);');
 } catch (e) {
   // columns likely exist
 }
@@ -77,41 +79,73 @@ export function setPolicy(userId, policy) {
 }
 
 export function saveEvent(userId, out, extra = {}) {
-  const lastEvent = db.prepare('SELECT hash FROM events WHERE user_id=? ORDER BY id DESC LIMIT 1').get(userId);
-  const prevHash = lastEvent?.hash || '0000000000000000000000000000000000000000000000000000000000000000';
-  
-  const rulesJson = JSON.stringify((out.rules || []).map(({ id, label, explain, w }) => ({ id, label, explain, w })));
-  const piiJson = JSON.stringify([...new Set((out.spans || []).map((s) => s.type))]);
-  const sanitized = (out.storedPrompt || '').slice(0, 2000);
-  const latencyJson = JSON.stringify(out.latency || {});
-  
-  // Compute tamper-evident hash
-  const dataToHash = `${prevHash}|${userId}|${out.action}|${out.category}|${out.risk}|${sanitized}`;
-  const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const headRow = db.prepare('SELECT head_hash, count FROM chain_heads WHERE user_id=?').get(userId);
+    const prevHash = headRow?.head_hash || '0000000000000000000000000000000000000000000000000000000000000000';
+    const count = (headRow?.count || 0) + 1;
+    
+    const rulesJson = JSON.stringify((out.rules || []).map(({ id, label, explain, w }) => ({ id, label, explain, w })));
+    const piiJson = JSON.stringify([...new Set((out.spans || []).map((s) => s.type))]);
+    const sanitized = (out.storedPrompt || '').slice(0, 2000);
+    const latencyJson = JSON.stringify(out.latency || {});
+    
+    const createdAt = extra.createdAt || new Date().toISOString();
+    const guardrails = out.action === 'UNGUARDED' ? 0 : 1;
+    const action = out.action;
+    const category = out.category;
+    const risk = out.risk;
+    const source = out.source || null;
+    const reason = out.reason || null;
+    const seeded = extra.seeded ? 1 : 0;
 
-  const info = db
-    .prepare(
+    const dataToHash = JSON.stringify({ user_id: userId, created_at: createdAt, guardrails, action, category, risk, source, reason, rules: rulesJson, pii: piiJson, sanitized, latency: latencyJson, seeded, prev_hash: prevHash });
+    const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
+
+    const info = db.prepare(
       `INSERT INTO events(user_id,guardrails,action,category,risk,source,reason,rules,pii,sanitized,latency,seeded,created_at,prev_hash,hash)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,COALESCE(?,datetime('now')),?,?)`
-    )
-    .run(
-      userId,
-      out.action === 'UNGUARDED' ? 0 : 1,
-      out.action,
-      out.category,
-      out.risk,
-      out.source || null,
-      out.reason || null,
-      rulesJson,
-      piiJson,
-      sanitized,
-      latencyJson,
-      extra.seeded ? 1 : 0,
-      extra.createdAt || null,
-      prevHash,
-      hash
-    );
-  return Number(info.lastInsertRowid);
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(userId, guardrails, action, category, risk, source, reason, rulesJson, piiJson, sanitized, latencyJson, seeded, createdAt, prevHash, hash);
+
+    db.prepare('INSERT INTO chain_heads(user_id,head_hash,count) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET head_hash=excluded.head_hash, count=excluded.count').run(userId, hash, count);
+    db.exec('COMMIT');
+    return Number(info.lastInsertRowid);
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+export function verifyChain(userId) {
+  const rows = db.prepare('SELECT * FROM events WHERE user_id=? ORDER BY id ASC').all(userId);
+  const headRow = db.prepare('SELECT head_hash, count FROM chain_heads WHERE user_id=?').get(userId);
+  
+  if (rows.length === 0) return { ok: true, checked: 0, unchained: 0 };
+  
+  let expectedPrev = '0000000000000000000000000000000000000000000000000000000000000000';
+  let checked = 0;
+  let unchained = 0;
+  
+  for (const r of rows) {
+    if (!r.hash) { unchained++; continue; }
+    const dataToHash = JSON.stringify({ user_id: r.user_id, created_at: r.created_at, guardrails: r.guardrails, action: r.action, category: r.category, risk: r.risk, source: r.source, reason: r.reason, rules: r.rules, pii: r.pii, sanitized: r.sanitized, latency: r.latency, seeded: r.seeded, prev_hash: r.prev_hash });
+    const computed = crypto.createHash('sha256').update(dataToHash).digest('hex');
+    
+    if (r.prev_hash !== expectedPrev || r.hash !== computed) {
+      return { ok: false, checked, brokenAtId: r.id, unchained };
+    }
+    expectedPrev = r.hash;
+    checked++;
+  }
+  
+  if (headRow) {
+    if (headRow.head_hash !== expectedPrev) return { ok: false, checked, brokenAtId: 'head_mismatch', unchained };
+    if (headRow.count !== checked + unchained) return { ok: false, checked, brokenAtId: 'count_mismatch', unchained };
+  } else if (checked > 0) {
+     return { ok: false, checked, brokenAtId: 'missing_head', unchained };
+  }
+  
+  return { ok: true, checked, unchained };
 }
 
 export const parseEvent = (r) => ({

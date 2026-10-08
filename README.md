@@ -35,7 +35,9 @@ flowchart LR
 | **Transparency**: each decision stores the matched rules in plain language; "Why this decision?" drawer; CSV/JSON export | Audit log page, `/api/events` |
 | **Measured red-team benchmark**: 133 prompts (69 attacks, 54 normal including 40 with attack-like wording, 10 with PII); reports detection, false-positive and PII rates plus latency | Benchmark page, `backend/src/benchmark.js` |
 | **Drop-in proxy**: OpenAI-compatible `POST /v1/chat/completions` authenticated with an API key | Integrate page |
-| **Enterprise features**: Discord webhook alerts, real-time caching, domain context restriction, SIEM-compatible JSON/CSV exports, model selection, tamper-evident hash-chained audit logs | `backend/src/pipeline/index.js`, Dashboard |
+| **Enterprise features**: Discord webhook alerts, real-time caching, domain context restriction, SIEM-compatible JSON/CSV exports, model selection, tamper-evident hash-chained audit logs* | `backend/src/pipeline/index.js`, Dashboard |
+
+*\* Note: The hash chain detects edits and truncation by someone who can only modify rows, not an attacker who rewrites the whole database and the head.*
 
 **Privacy by design:** raw prompts and model replies are never written to the database. Only the PII-tokenized prompt is stored.
 

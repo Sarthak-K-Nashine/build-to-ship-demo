@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /* ---------- icons (outline, 24px grid) ---------- */
 const PATHS = {
@@ -24,11 +25,11 @@ export const Icon = ({ name, size = 16, className = '', strokeWidth = 1.8 }) => 
 
 export function Logo({ size = 28 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+    <motion.svg whileHover={{ rotate: -10, scale: 1.05 }} width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
       <rect width="32" height="32" rx="8" fill="#2557d6" />
       <path d="M16 7l7 2.7v5.6c0 4.6-3 7.9-7 9.3-4-1.4-7-4.7-7-9.3V9.7z" fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
       <path d="M12.8 16l2.2 2.2 4.2-4.4" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    </motion.svg>
   );
 }
 
@@ -42,9 +43,9 @@ export const ACTION = {
 export const Badge = ({ action }) => {
   const [label, cls, dot] = ACTION[action] || ACTION.UNGUARDED;
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>
+    <motion.span initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />{label}
-    </span>
+    </motion.span>
   );
 };
 
@@ -53,7 +54,9 @@ export const Risk = ({ value = 0 }) => {
   const c = v >= 60 ? 'bg-[#f04438]' : v >= 30 ? 'bg-[#f79009]' : 'bg-[#17b26a]';
   return (
     <span className="inline-flex items-center gap-2" title={`Risk score ${v} of 100`}>
-      <span className="block h-1.5 w-12 overflow-hidden rounded-full bg-gray-100"><span className={`block h-full rounded-full ${c}`} style={{ width: `${Math.max(4, v)}%` }} /></span>
+      <span className="block h-1.5 w-12 overflow-hidden rounded-full bg-gray-100">
+        <motion.span initial={{ width: 0 }} animate={{ width: `${Math.max(4, v)}%` }} transition={{ duration: 0.8, ease: "easeOut" }} className={`block h-full rounded-full ${c}`} />
+      </span>
       <span className="w-6 text-xs tabular-nums text-body">{v}</span>
     </span>
   );
@@ -61,17 +64,21 @@ export const Risk = ({ value = 0 }) => {
 
 /* ---------- layout ---------- */
 export const PageHeader = ({ title, description, actions }) => (
-  <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <motion.div initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6 flex flex-wrap items-start justify-between gap-4">
     <div className="min-w-0">
       <h1 className="text-[22px] font-semibold tracking-[-0.01em] text-ink">{title}</h1>
       {description && <p className="mt-1 max-w-2xl text-sm text-mute">{description}</p>}
     </div>
     {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-  </div>
+  </motion.div>
 );
 
-export const Card = ({ title, description, right, children, className = '', pad = true }) => (
-  <section className={`min-w-0 rounded-xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] ${className}`}>
+export const Card = ({ title, description, right, children, className = '', pad = true, delay = 0 }) => (
+  <motion.section 
+    initial={{ y: 20, opacity: 0 }} 
+    animate={{ y: 0, opacity: 1 }} 
+    transition={{ delay, duration: 0.4 }}
+    className={`min-w-0 rounded-xl border border-line bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] hover:shadow-md transition-shadow ${className}`}>
     {(title || right) && (
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div>
@@ -82,19 +89,26 @@ export const Card = ({ title, description, right, children, className = '', pad 
       </div>
     )}
     <div className={pad ? 'p-5' : ''}>{children}</div>
-  </section>
+  </motion.section>
 );
 
-export const Stat = ({ label, value, hint, dot }) => (
-  <div className="rounded-xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+export const Stat = ({ label, value, hint, dot, delay = 0 }) => (
+  <motion.div 
+    initial={{ scale: 0.95, opacity: 0 }} 
+    animate={{ scale: 1, opacity: 1 }} 
+    transition={{ delay, duration: 0.4 }}
+    whileHover={{ y: -2 }}
+    className="rounded-xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] hover:shadow-md transition-shadow">
     <div className="flex items-center gap-2 text-[13px] font-medium text-mute">{dot && <span className={`h-2 w-2 rounded-full ${dot}`} />}{label}</div>
     <div className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.02em] tabular-nums text-ink">{value ?? '–'}</div>
     {hint && <div className="mt-1 text-xs text-mute">{hint}</div>}
-  </div>
+  </motion.div>
 );
 
 export const Btn = ({ kind = 'primary', size = 'md', className = '', busy = false, icon, children, ...p }) => (
-  <button
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
     {...p}
     className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${size === 'sm' ? 'px-3 py-1.5 text-[13px]' : 'px-4 py-2 text-sm'} ${
       kind === 'primary'
@@ -104,7 +118,7 @@ export const Btn = ({ kind = 'primary', size = 'md', className = '', busy = fals
   >
     {busy ? <span className="spinner" /> : icon && <Icon name={icon} size={15} />}
     {children}
-  </button>
+  </motion.button>
 );
 
 export function Toggle({ checked, onChange, label, hint }) {
@@ -120,25 +134,25 @@ export function Toggle({ checked, onChange, label, hint }) {
 }
 
 export const Loading = ({ label = 'Loading…' }) => (
-  <div className="flex items-center gap-2.5 py-10 text-sm text-mute"><span className="spinner text-brand" />{label}</div>
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5 py-10 text-sm text-mute"><span className="spinner text-brand" />{label}</motion.div>
 );
 
 export const Notice = ({ tone = 'info', children }) => {
   const t = { info: ['border-[#c7d7fe] bg-brand-soft text-[#1d3c8f]', 'info'], warn: ['border-warn-line bg-warn-soft text-warn', 'alert'], bad: ['border-bad-line bg-bad-soft text-bad', 'alert'] }[tone];
-  return <div role={tone === 'bad' ? 'alert' : undefined} className={`flex items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-[13px] ${t[0]}`}><Icon name={t[1]} size={16} className="mt-px" /><div>{children}</div></div>;
+  return <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} role={tone === 'bad' ? 'alert' : undefined} className={`flex items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-[13px] ${t[0]}`}><Icon name={t[1]} size={16} className="mt-px" /><div>{children}</div></motion.div>;
 };
 
 export function Code({ children, lang = 'bash' }) {
   const [done, setDone] = useState(false);
   const copy = () => navigator.clipboard?.writeText(String(children)).then(() => { setDone(true); setTimeout(() => setDone(false), 1500); });
   return (
-    <div className="overflow-hidden rounded-lg border border-[#1e293b] bg-[#0f172a]">
+    <motion.div whileHover={{ scale: 1.01 }} className="overflow-hidden rounded-lg border border-[#1e293b] bg-[#0f172a]">
       <div className="flex items-center justify-between border-b border-[#1e293b] px-4 py-2">
         <span className="text-xs font-medium text-slate-400">{lang}</span>
         <button onClick={copy} className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white"><Icon name={done ? 'check' : 'copy'} size={13} />{done ? 'Copied' : 'Copy'}</button>
       </div>
       <pre className="overflow-x-auto p-4 font-mono text-[12.5px] leading-6 text-slate-200">{children}</pre>
-    </div>
+    </motion.div>
   );
 }
 
@@ -172,8 +186,15 @@ export function Stages({ stages = [], latency }) {
   return (
     <div>
       <ol className="divide-y divide-gray-100 rounded-lg border border-line">
+        <AnimatePresence>
         {stages.map((s, i) => (
-          <li key={i} className="flex items-start gap-3 px-3.5 py-2.5">
+          <motion.li 
+            key={i} 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.1, duration: 0.3 }}
+            className="flex items-start gap-3 px-3.5 py-2.5"
+          >
             <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${DOT[s.status] || 'bg-gray-300'}`} />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-3">
@@ -181,10 +202,11 @@ export function Stages({ stages = [], latency }) {
                 <span className="text-xs tabular-nums text-mute">{s.status === 'skipped' ? 'Skipped' : `${s.ms} ms`}</span>
               </div>
               {s.detail && <div className="text-xs text-mute">{s.detail}</div>}
-              {s.status !== 'skipped' && <div className="mt-1.5 h-1 rounded-full bg-gray-100"><div className={`h-1 rounded-full ${DOT[s.status]}`} style={{ width: `${Math.max(2, (s.ms / max) * 100)}%` }} /></div>}
+              {s.status !== 'skipped' && <div className="mt-1.5 h-1 rounded-full bg-gray-100"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.max(2, (s.ms / max) * 100)}%` }} transition={{ duration: 0.5, delay: i * 0.1 }} className={`h-1 rounded-full ${DOT[s.status]}`} /></div>}
             </div>
-          </li>
+          </motion.li>
         ))}
+        </AnimatePresence>
       </ol>
       {latency && (
         <p className="mt-2.5 text-xs text-mute">

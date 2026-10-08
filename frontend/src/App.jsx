@@ -4,6 +4,8 @@ import { api, session } from './api.js';
 import Login from './pages/Login.jsx';
 import Sandbox from './pages/Sandbox.jsx';
 import { Icon, Loading, Logo } from './ui.jsx';
+import Cursor from './Cursor.jsx';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Loaded on first visit, so the charting library (recharts) is not in the initial bundle.
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
@@ -89,7 +91,17 @@ function Shell({ children }) {
           </span>
         </header>
         <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
-          <Suspense fallback={<Loading />}>{children}</Suspense>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={loc.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Suspense fallback={<Loading />}>{children}</Suspense>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>
@@ -107,6 +119,7 @@ export default function App() {
   };
   return (
     <AuthCtx.Provider value={value}>
+      <Cursor />
       <Routes>
         <Route path="/login" element={token ? <Navigate to="/" /> : <Login />} />
         <Route path="/*" element={token ? (

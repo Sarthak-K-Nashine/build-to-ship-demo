@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 title PromptShield
-cd /d "%~dp0"
+cd /d "%~dp0..\.."
 
 if not exist "backend\src\index.js" (
   echo.

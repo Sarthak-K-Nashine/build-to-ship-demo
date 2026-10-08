@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS events(
   latency TEXT,
   seeded INTEGER NOT NULL DEFAULT 0,
   prev_hash TEXT,
-  hash TEXT
+  hash TEXT,
+  real_model INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id, id DESC);
 CREATE TABLE IF NOT EXISTS chain_heads(user_id INTEGER PRIMARY KEY, head_hash TEXT, count INTEGER);
@@ -52,9 +53,11 @@ try {
   db.exec('ALTER TABLE events ADD COLUMN prev_hash TEXT;');
   db.exec('ALTER TABLE events ADD COLUMN hash TEXT;');
   db.exec('CREATE TABLE IF NOT EXISTS chain_heads(user_id INTEGER PRIMARY KEY, head_hash TEXT, count INTEGER);');
-} catch (e) {
-  // columns likely exist
-}
+} catch (e) {}
+
+try {
+  db.exec('ALTER TABLE events ADD COLUMN real_model INTEGER NOT NULL DEFAULT 0;');
+} catch (e) {}
 
 export const DEFAULT_POLICY = {
   piiMasking: true,
@@ -98,14 +101,15 @@ export function saveEvent(userId, out, extra = {}) {
     const source = out.source || null;
     const reason = out.reason || null;
     const seeded = extra.seeded ? 1 : 0;
+    const realModel = out.realModel ? 1 : 0;
 
     const dataToHash = JSON.stringify({ user_id: userId, created_at: createdAt, guardrails, action, category, risk, source, reason, rules: rulesJson, pii: piiJson, sanitized, latency: latencyJson, seeded, prev_hash: prevHash });
     const hash = crypto.createHash('sha256').update(dataToHash).digest('hex');
 
     const info = db.prepare(
-      `INSERT INTO events(user_id,guardrails,action,category,risk,source,reason,rules,pii,sanitized,latency,seeded,created_at,prev_hash,hash)
-       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).run(userId, guardrails, action, category, risk, source, reason, rulesJson, piiJson, sanitized, latencyJson, seeded, createdAt, prevHash, hash);
+      `INSERT INTO events(user_id,guardrails,action,category,risk,source,reason,rules,pii,sanitized,latency,seeded,prev_hash,hash,real_model,created_at)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(userId, guardrails, action, category, risk, source, reason, rulesJson, piiJson, sanitized, latencyJson, seeded, prevHash, hash, realModel, createdAt);
 
     db.prepare('INSERT INTO chain_heads(user_id,head_hash,count) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET head_hash=excluded.head_hash, count=excluded.count').run(userId, hash, count);
     db.exec('COMMIT');

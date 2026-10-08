@@ -121,6 +121,7 @@ export async function runPipeline({ prompt, context, policy, guardrails = true, 
     t = performance.now();
     const llm = await callLLM({ prompt: llmInput, targetModel });
     result.llmMode = llm.mode;
+    if (llm.mode === 'gemini') result.realModel = true;
     add('Downstream LLM', 'llm', t, llm.mode === 'error' ? 'error' : 'pass', llm.mode);
 
     t = performance.now();

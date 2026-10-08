@@ -1,6 +1,6 @@
 #!/bin/bash
 # Double-click to start PromptShield. Keep the Terminal window open while you use it.
-cd "$(dirname "$0")" || exit 1
+cd "$(dirname "$0")/../.." || exit 1
 CHECK='const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=13)?0:1)'
 
 NODE=""

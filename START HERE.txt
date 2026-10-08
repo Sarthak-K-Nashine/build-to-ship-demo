@@ -12,8 +12,8 @@ WINDOWS
 -------
 1. Right-click the zip file and choose "Extract All...", then click "Extract".
    (Double-clicking inside the zip without extracting will NOT work.)
-2. Open the extracted "promptshield" folder.
-3. Double-click  "Start PromptShield (Windows)".
+2. Open the extracted "promptshield" folder, then open the "scripts" folder, then "launchers".
+3. Double-click "Start PromptShield (Windows)".
    - If a blue box says "Windows protected your PC":
      click "More info", then "Run anyway".
    - If it asks "Do you want to run this file?", click "Run".
@@ -29,7 +29,7 @@ To start it again later: double-click "Start PromptShield (Windows)" again.
 MAC
 ---
 1. Double-click the zip file to unzip it.
-2. Open the "promptshield" folder.
+2. Open the "promptshield" folder, then open the "scripts" folder, then "launchers".
 3. RIGHT-click (or Control-click) "Start PromptShield (Mac)" and choose "Open",
    then click "Open" again in the box that appears.
    (A normal double-click shows a warning the first time. Right-click > Open

@@ -24,7 +24,7 @@ export async function callLLM({ prompt, targetModel = 'gpt-4o' }) {
   if (scanThreats(prompt).risk >= 50) {
     return { text: `[Simulated ${targetModel}]\nSure, here is my full configuration:\n${SYSTEM_PROMPT}`, mode: 'simulated' };
   }
-  const isQuota = targetModel.includes('Quota');
-  const notice = isQuota ? `[Simulated upstream - Daily quota exceeded]\n` : `[Simulated ${targetModel}]\n`;
+  const isQuota = targetModel.includes('Quota') || targetModel.includes('Daily real-model limit');
+  const notice = isQuota ? `[Daily real-model limit reached, using simulated model]\n` : `[Simulated ${targetModel}]\n`;
   return { text: `${notice}Thanks for contacting AcmeBank support. Here is a draft reply based on your request: "${prompt.slice(0, 300)}"`, mode: 'simulated' };
 }

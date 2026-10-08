@@ -23,12 +23,16 @@ const publicOut = (o, eventId) => ({
   stages: o.stages, latency: o.latency,
 });
 
-r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
+const checkQuota = (userId) => {
   const DAILY_LIMIT = config.downstreamDailyLimit;
-  const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(req.user.id);
-  const quotaExceeded = quotaRow && quotaRow.c >= DAILY_LIMIT;
+  const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND seeded=0 AND real_model=1 AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(userId);
+  return quotaRow && quotaRow.c >= DAILY_LIMIT;
+};
 
-  const targetModel = quotaExceeded ? 'Quota exceeded' : req.body.targetModel;
+r.post('/api/chat', auth, limiter, validate(chatSchema), async (req, res) => {
+  const quotaExceeded = checkQuota(req.user.id);
+
+  const targetModel = quotaExceeded ? 'Daily real-model limit reached, using simulated model' : req.body.targetModel;
   const out = await runPipeline({ prompt: req.body.prompt, context: req.body.context, policy: getPolicy(req.user.id), guardrails: req.body.guardrails, targetModel });
   const id = saveEvent(req.user.id, out);
   res.status(out.action === 'BLOCKED' ? 403 : 200).json(publicOut(out, id));
@@ -108,9 +112,7 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
     return res.status(403).json({ error: { message: out.response, type: 'guardrail_blocked', code: out.category, risk_score: out.risk, event_id: id } });
   }
 
-  const DAILY_LIMIT = config.downstreamDailyLimit;
-  const quotaRow = db.prepare(`SELECT COUNT(*) as c FROM events WHERE user_id=? AND date(created_at) = date('now') AND (action='ALLOWED' OR action='REDACTED' OR action='UNGUARDED')`).get(req.user.id);
-  const quotaExceeded = quotaRow && quotaRow.c >= DAILY_LIMIT;
+  const quotaExceeded = checkQuota(req.user.id);
 
   let data;
   if (config.upstreamBaseUrl && config.upstreamApiKey && !quotaExceeded) {
@@ -132,6 +134,7 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
       }
       try {
         data = JSON.parse(rawBody);
+        out.realModel = true;
       } catch (e) {
         return res.status(502).json({ error: { type: 'upstream_error', message: `Upstream request failed (status ${response.status})` } });
       }
@@ -139,7 +142,7 @@ r.post('/v1/chat/completions', auth, limiter, validate(oaiSchema), async (req, r
       return res.status(502).json({ error: { message: `Upstream error: ${e.message}`, type: 'upstream_error' } });
     }
   } else {
-    const notice = quotaExceeded ? `[Simulated upstream - Daily quota of ${DAILY_LIMIT} exceeded]\n` : `[Simulated ${req.body.model || 'upstream'}]\n`;
+    const notice = quotaExceeded ? `[Daily real-model limit reached, using simulated model]\n` : `[Simulated ${req.body.model || 'upstream'}]\n`;
     data = {
       id: `chatcmpl-ps-${Date.now()}`, object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: req.body.model || 'promptshield-proxy',
       choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: `${notice}Thanks for contacting support. Here is a draft reply: "${scanText.slice(0, 300)}"` } }],

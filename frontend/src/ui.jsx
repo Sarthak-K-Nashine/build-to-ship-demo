@@ -78,10 +78,10 @@ export const Card = ({ title, description, right, children, className = '', pad 
     initial={{ y: 20, opacity: 0, scale: 0.98 }} 
     animate={{ y: 0, opacity: 1, scale: 1 }} 
     transition={{ delay, type: 'spring', stiffness: 200, damping: 20 }}
-    whileHover={{ y: -4, boxShadow: '0 12px 30px -4px rgba(37, 87, 214, 0.08), 0 4px 6px -2px rgba(16,24,40,0.04)' }}
-    className={`min-w-0 rounded-xl border border-line bg-white shadow-[0_1px_3px_rgba(16,24,40,0.05)] transition-colors ${className}`}>
+    whileHover={{ y: -4, boxShadow: '0 12px 30px -4px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1)' }}
+    className={`min-w-0 rounded-xl border border-line bg-black/40 backdrop-blur-2xl shadow-[0_4px_24px_rgba(0,0,0,0.3)] transition-all duration-300 ${className}`}>
     {(title || right) && (
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/70 px-5 py-4 bg-gray-50/50 rounded-t-xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 bg-white/5 rounded-t-xl">
         <div>
           <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
           {description && <p className="mt-0.5 text-[13px] text-mute">{description}</p>}
@@ -98,9 +98,9 @@ export const Stat = ({ label, value, hint, dot, delay = 0 }) => (
     initial={{ scale: 0.9, opacity: 0, y: 10 }} 
     animate={{ scale: 1, opacity: 1, y: 0 }} 
     transition={{ delay, type: 'spring', stiffness: 300, damping: 25 }}
-    whileHover={{ y: -4, scale: 1.02, boxShadow: '0 12px 30px -4px rgba(37, 87, 214, 0.12), 0 4px 6px -2px rgba(16,24,40,0.04)' }}
-    className="rounded-xl border border-line bg-gradient-to-b from-white to-gray-50/30 p-5 shadow-[0_2px_4px_rgba(16,24,40,0.04)] relative overflow-hidden group">
-    <motion.div initial={false} animate={{ opacity: 0 }} whileHover={{ opacity: 1 }} className="absolute inset-0 bg-gradient-to-tr from-brand/5 to-transparent pointer-events-none transition-opacity duration-300" />
+    whileHover={{ y: -4, scale: 1.02, boxShadow: '0 12px 30px -4px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1)' }}
+    className="rounded-xl border border-line bg-gradient-to-b from-white/5 to-black/40 backdrop-blur-2xl p-5 shadow-[0_4px_24px_rgba(0,0,0,0.3)] relative overflow-hidden group">
+    <motion.div initial={false} animate={{ opacity: 0 }} whileHover={{ opacity: 1 }} className="absolute inset-0 bg-gradient-to-tr from-brand/10 to-transparent pointer-events-none transition-opacity duration-300" />
     <div className="relative z-10">
       <div className="flex items-center gap-2 text-[13px] font-medium text-mute">{dot && <span className={`h-2 w-2 rounded-full shadow-sm ${dot}`} />}{label}</div>
       <div className="mt-2 text-[28px] font-bold leading-tight tracking-[-0.02em] tabular-nums text-ink group-hover:text-brand transition-colors">{value ?? '–'}</div>
@@ -111,13 +111,13 @@ export const Stat = ({ label, value, hint, dot, delay = 0 }) => (
 
 export const Btn = ({ kind = 'primary', size = 'md', className = '', busy = false, icon, children, ...p }) => (
   <motion.button
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
     {...p}
-    className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${size === 'sm' ? 'px-3 py-1.5 text-[13px]' : 'px-4 py-2 text-sm'} ${
+    className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${size === 'sm' ? 'px-3 py-1.5 text-[13px]' : 'px-4 py-2 text-sm'} ${
       kind === 'primary'
-        ? 'bg-brand text-white shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:bg-brand-dark'
-        : 'border border-[#d0d5dd] bg-white text-body shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:bg-gray-50 hover:text-ink'
+        ? 'bg-brand text-white shadow-[0_0_15px_rgba(37,87,214,0.5)] hover:shadow-[0_0_25px_rgba(37,87,214,0.8)] border border-brand/50 hover:bg-brand-dark'
+        : 'border border-line bg-white/5 text-ink shadow-sm hover:bg-white/10 backdrop-blur-md hover:border-line/70'
     } ${className}`}
   >
     {busy ? <span className="spinner" /> : icon && <Icon name={icon} size={15} />}

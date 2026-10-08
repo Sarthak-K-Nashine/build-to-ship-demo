@@ -18,7 +18,7 @@ const Section = ({ label, children }) => (
     {children}
   </div>
 );
-const Well = ({ children, className = '' }) => <div className={`rounded-lg border border-line bg-gray-50 px-3.5 py-3 ${className}`}>{children}</div>;
+const Well = ({ children, className = '' }) => <div className={`rounded-lg border border-line bg-white/5 px-3.5 py-3 backdrop-blur-sm ${className}`}>{children}</div>;
 
 function Panel({ title, subtitle, data, off, delay = 0 }) {
   if (!data) return null;
